@@ -1,8 +1,8 @@
 package bazarr
 
 import (
-	"ajmandourah/bazarr-sync/internal/client"
-	"ajmandourah/bazarr-sync/internal/config"
+	"github.com/ajmandourah/bazarr-sync/internal/client"
+	"github.com/ajmandourah/bazarr-sync/internal/config"
 	"encoding/json"
 	"errors"
 	"fmt"

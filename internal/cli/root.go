@@ -5,7 +5,7 @@ package cli
 
 import (
 	"os"
-	"ajmandourah/bazarr-sync/internal/config"
+	"github.com/ajmandourah/bazarr-sync/internal/config"
 
 	"github.com/spf13/cobra"
 )

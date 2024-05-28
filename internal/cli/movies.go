@@ -4,8 +4,8 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cli
 
 import (
-	"ajmandourah/bazarr-sync/internal/bazarr"
-	"ajmandourah/bazarr-sync/internal/config"
+	"github.com/ajmandourah/bazarr-sync/internal/bazarr"
+	"github.com/ajmandourah/bazarr-sync/internal/config"
 	"fmt"
 	"os"
 	"strconv"

@@ -1,4 +1,4 @@
-module ajmandourah/bazarr-sync
+module github.com/ajmandourah/bazarr-sync
 
 go 1.22.3
 
