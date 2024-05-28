@@ -5,6 +5,33 @@ Bazarr let you download subs for your titles automatically.
 But if for some reason you needed to sync old subtitles, wither you need to do it because you have not synced them before or you have edited them elsewhere, you will be forced to do it one by one as there is no option to bulk sync them.
 This cli tool help you achieve that by utilizing bazarr's api.
 
+## Installation 
+
+### Go
+- Install go in your system. this can be done through here. https://go.dev/doc/install
+- After installation in a terminal install the module
+```
+go install github.com/ajmandourah/bazarr-sync/cmd/bazarr-sync@latest
+
+```
+make sure your go path is included in your path. you should be able to use the command directly with `bazarr-sync` or `bazarr-sync.exe` in windows.
+
+### Docker
+pull the image 
+```
+sudo docker pull ghcr.io/ajmandourah/bazarr-sync:latest
+
+```
+create or copy the `config.yaml` file from the example folder. edit it to your settings. for docker you can use the bazarr container name if you have bazarr in a bridged network (not the default docker network). change the network name in the command.
+Run the command in the same folder where the `config.yaml` is located. change the command to your desired functionfor example `bazarr-sync sync shows`
+```
+sudo docker run -it \
+-v ${PWD}/config.yaml:/usr/src/app/config.yaml \
+--network <NETWORK_NAME> \
+ghcr.io/ajmandourah/bazarr-sync:latest \
+bazarr-sync sync movies
+```
+
 ## Configuration
 use the provided config.yaml file as a template. fill in the required fields.
 either direct the flag --config to your config file or place it in the working directiory where you bazarr-sync is located.
