@@ -41,7 +41,9 @@ func sync_movies(cfg config.Config) {
 	}
 	fmt.Println("Syncing ", len(movies.Data), " Movies in your Bazarr library.")
 
-	bar := progressbar.New(len(movies.Data))
+	bar := progressbar.NewOptions(len(movies.Data),
+					progressbar.OptionSetWidth(10),
+					progressbar.OptionShowCount())
 	bar.Describe("Syncing..")
 	for _, movie := range movies.Data {
 		bar.Add(1)

@@ -41,10 +41,8 @@ func sync_shows(cfg config.Config) {
 		fmt.Fprintln(os.Stderr, "Query Error: Could not query series")
 	}
 	fmt.Println("Syncing ", len(shows.Data), "shows in your Bazarr library.")
-
 	bar := progressbar.NewOptions(len(shows.Data),
-					progressbar.OptionFullWidth(),
-					progressbar.OptionClearOnFinish(),
+					progressbar.OptionSetWidth(10),
 					progressbar.OptionShowCount())
 	for _, show := range shows.Data {
 		bar.Add(1)
