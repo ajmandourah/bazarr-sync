@@ -63,9 +63,11 @@ func sync_movies(cfg config.Config) {
 						break
 					}	
 				}
-				bar.Clear()
-				fmt.Println("Unable to sync subtitle for", movie.Title, " lang: ", subtitle.Code2)
-				bar.RenderBlank()
+				if !ok {
+					bar.Clear()
+					fmt.Println("Unable to sync subtitle for", movie.Title, " lang: ", subtitle.Code2)
+					bar.RenderBlank()
+				}
 			}
 		}
 	} 

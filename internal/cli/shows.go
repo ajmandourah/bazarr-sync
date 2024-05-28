@@ -75,9 +75,11 @@ func sync_shows(cfg config.Config) {
 							break
 						}
 					}
-					bar.Clear()
-					fmt.Println("Unable to sync subtitile for", show.Title,":", episode.Title, "lang:", subtitle.Code2)
-					bar.RenderBlank()
+					if !ok{
+						bar.Clear()
+						fmt.Println("Unable to sync subtitile for", show.Title,":", episode.Title, "lang:", subtitle.Code2)
+						bar.RenderBlank()
+					}
 				}
 			}
 		}
