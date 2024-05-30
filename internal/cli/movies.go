@@ -4,14 +4,15 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cli
 
 import (
-	"github.com/ajmandourah/bazarr-sync/internal/bazarr"
 	"github.com/ajmandourah/bazarr-sync/internal/config"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/schollz/progressbar/v3"
+	"github.com/ajmandourah/bazarr-sync/internal/bazarr"
+	"github.com/pterm/pterm"
+
 	"github.com/spf13/cobra"
 )
 
@@ -41,23 +42,25 @@ func sync_movies(cfg config.Config) {
 	}
 	fmt.Println("Syncing ", len(movies.Data), " Movies in your Bazarr library.")
 
-	bar := progressbar.NewOptions(len(movies.Data),
-					progressbar.OptionSetWidth(10),
-					progressbar.OptionShowCount())
-	bar.Describe("Syncing..")
+	p ,_:= pterm.DefaultProgressbar.WithTitle("Syncing movies..").WithTotal(len(movies.Data)).WithMaxWidth(1).WithShowElapsedTime(true).Start()
+	
 	for _, movie := range movies.Data {
-		bar.Add(1)
-		bar.Describe(movie.Title)
+		p.UpdateTitle(movie.Title)
 		for i,subtitle := range movie.Subtitles {
 			if subtitle.Path == "" || subtitle.File_size == 0 {
 				continue
 			}
-			bar.Describe(movie.Title + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(movie.Subtitles)))
+			p.UpdateTitle(movie.Title + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(movie.Subtitles)))
 			params := bazarr.GetSyncParams("movie", movie.RadarrId, subtitle)
 			if gss {params.Gss = "True"}
 			if no_framerate_fix {params.No_framerate_fix = "True"}
 			ok := bazarr.Sync(cfg,params)	
-			if !ok {
+			if ok {
+				pterm.Success.WithWriter(os.Stdout).Println("Synced", movie.Title, "lang:", subtitle.Code2)
+				continue
+
+			} else {
+				pterm.Warning.WithWriter(os.Stdout).Println("Error while syncing", movie.Title, "lang:", subtitle.Code2, "Retrying..")
 				for i := 1; i < 5; i++{
 					time.Sleep(2*time.Second)
 					ok := bazarr.Sync(cfg, params)
@@ -65,14 +68,14 @@ func sync_movies(cfg config.Config) {
 						break
 					}	
 				}
-				if !ok {
-					bar.Clear()
-					fmt.Println("Unable to sync subtitle for", movie.Title, " lang: ", subtitle.Code2)
-					bar.RenderBlank()
+				if !ok {	
+					pterm.Error.WithWriter(os.Stdout).Println("Unable to sync", movie.Title, "lang:", subtitle.Code2)
+					// fmt.Println("Unable to sync subtitle for", movie.Title, " lang: ", subtitle.Code2)
 				}
 			}
+			
 		}
+		p.Increment()
 	} 
-	bar.Clear()
 	fmt.Println("Finished syncing subtitles of type Movies")
 }
