@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pterm/pterm"
 
-	"github.com/schollz/progressbar/v3"
 )
 
 // showsCmd represents the shows command
@@ -41,47 +41,50 @@ func sync_shows(cfg config.Config) {
 		fmt.Fprintln(os.Stderr, "Query Error: Could not query series")
 	}
 	fmt.Println("Syncing ", len(shows.Data), "shows in your Bazarr library.")
-	bar := progressbar.NewOptions(len(shows.Data),
-					progressbar.OptionSetWidth(10),
-					progressbar.OptionShowCount())
-	for _, show := range shows.Data {
-		bar.Add(1)
-		bar.Describe(show.Title)
+	for i, show := range shows.Data {
 		episodes, err := bazarr.QueryEpisodes(cfg,show.SonarrSeriesId)
 		if err != nil {
-			bar.Clear()
-			fmt.Println("Could not Query episodes for show:", show.Title)
-			bar.RenderBlank()
 			continue
 		}
 
 		for _, episode := range episodes.Data {
-			for sub_index, subtitle := range episode.Subtitles {
+			for _, subtitle := range episode.Subtitles {
+				p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(show.Title),
+					pterm.LightGreen(":",episode.Title),
+					" lang:" + pterm.LightRed(subtitle.Code2) + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(shows.Data)))
+
 				if subtitle.Path == "" || subtitle.File_size == 0 {
+					pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
+					p.Success(pterm.LightBlue(show.Title,":",episode.Title, "Could not find a subtitle. most likely an embedded. Lang: ",subtitle.Code2))
+					pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
 					continue
 				}
-				bar.Describe(show.Title + ":" + episode.Title + " " + strconv.Itoa(sub_index+1) + "/" + strconv.Itoa(len(episode.Subtitles)))
 				params := bazarr.GetSyncParams("episode", episode.SonarrEpisodeId, subtitle)
 				if gss {params.Gss = "True"}
 				if no_framerate_fix {params.No_framerate_fix = "True"}
 				ok := bazarr.Sync(cfg, params)
-				if !ok {
-					for i := 1; i < 5; i++ {
+				if ok {
+					
+					p.Success("Synced ", show.Title,":", episode.Title, " lang: ", subtitle.Code2)
+					continue
+				} else {
+					for i := 1; i < 2; i++ {
+						p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(show.Title),
+							pterm.LightGreen(":",episode.Title),
+							" lang:" + pterm.LightRed(subtitle.Code2) + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(shows.Data)))
 						time.Sleep(2 * time.Second)
 						ok := bazarr.Sync(cfg, params)
 						if ok {
+							p.Success("Synced ", show.Title,":", episode.Title, " lang: ", subtitle.Code2)
 							break
 						}
 					}
 					if !ok{
-						bar.Clear()
-						fmt.Println("Unable to sync subtitile for", show.Title,":", episode.Title, "lang:", subtitle.Code2)
-						bar.RenderBlank()
+						p.Fail("Unable to sync ", show.Title, ":", episode.Title, " lang: ", subtitle.Code2)
 					}
 				}
 			}
 		}
 	}
-	bar.Clear()
 	fmt.Println("Finished syncing subtitles of type Movies")
 }

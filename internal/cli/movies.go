@@ -41,41 +41,41 @@ func sync_movies(cfg config.Config) {
 		fmt.Fprintln(os.Stderr,"Query Error: Could not query movies")
 	}
 	fmt.Println("Syncing ", len(movies.Data), " Movies in your Bazarr library.")
-
-	p ,_:= pterm.DefaultProgressbar.WithTitle("Syncing movies..").WithTotal(len(movies.Data)).WithMaxWidth(1).WithShowElapsedTime(true).Start()
 	
-	for _, movie := range movies.Data {
-		p.UpdateTitle(movie.Title)
-		for i,subtitle := range movie.Subtitles {
+	for i, movie := range movies.Data {
+		for _,subtitle := range movie.Subtitles {
+			p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(movie.Title) + " lang:" + pterm.LightRed(subtitle.Code2) + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(movies.Data)))
 			if subtitle.Path == "" || subtitle.File_size == 0 {
+				pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
+				p.Success(pterm.LightBlue(movie.Title," Could not find a subtitle. most likely an embedded. Lang: ",subtitle.Code2))
+				pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
 				continue
 			}
-			p.UpdateTitle(movie.Title + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(movie.Subtitles)))
 			params := bazarr.GetSyncParams("movie", movie.RadarrId, subtitle)
 			if gss {params.Gss = "True"}
 			if no_framerate_fix {params.No_framerate_fix = "True"}
 			ok := bazarr.Sync(cfg,params)	
 			if ok {
-				pterm.Success.WithWriter(os.Stdout).Println("Synced", movie.Title, "lang:", subtitle.Code2)
+				p.Success("Synced ", movie.Title, " lang:", subtitle.Code2)
 				continue
 
 			} else {
-				pterm.Warning.WithWriter(os.Stdout).Println("Error while syncing", movie.Title, "lang:", subtitle.Code2, "Retrying..")
-				for i := 1; i < 5; i++{
+				p.Warning("Error while syncing ", movie.Title, " lang: ", subtitle.Code2, " Retrying..")
+				for i := 1; i < 2; i++{	
+					p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(movie.Title) + " lang:" + pterm.LightRed(subtitle.Code2) + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(movie.Subtitles)))
 					time.Sleep(2*time.Second)
 					ok := bazarr.Sync(cfg, params)
 					if ok{
+						p.Success("Synced: ", movie.Title, " lang:", subtitle.Code2)
 						break
 					}	
 				}
 				if !ok {	
-					pterm.Error.WithWriter(os.Stdout).Println("Unable to sync", movie.Title, "lang:", subtitle.Code2)
-					// fmt.Println("Unable to sync subtitle for", movie.Title, " lang: ", subtitle.Code2)
+					p.Fail("Unable to sync ", movie.Title, " lang: ", subtitle.Code2)
 				}
 			}
 			
 		}
-		p.Increment()
 	} 
 	fmt.Println("Finished syncing subtitles of type Movies")
 }
