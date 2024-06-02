@@ -27,6 +27,10 @@ The script by default will try to not use the golden section search method and w
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.GetConfig()
 		bazarr.HealthCheck(cfg)
+		if to_list {
+			list_movies(cfg)
+			return
+		}
 		sync_movies(cfg)
 	},
 }
@@ -78,4 +82,22 @@ func sync_movies(cfg config.Config) {
 		}
 	} 
 	fmt.Println("Finished syncing subtitles of type Movies")
+}
+
+func list_movies(cfg config.Config) {	
+	movies, err := bazarr.QueryMovies(cfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr,"Query Error: Could not query movies")
+	}
+	table := pterm.TableData{
+		{"Title","imdbId"},
+	}
+	pterm.Println(pterm.LightGreen("Listing all your movies with their respective imdbId (great for syncing specefic movie)\n"))
+
+	for _, movie := range movies.Data {
+		// pterm.Println(pterm.LightBlue(movie.Title), "\t", pterm.LightRed(movie.ImdbId))
+		t := []string{pterm.LightBlue(movie.Title),pterm.LightRed(movie.ImdbId)}
+		table = append(table, t)
+	}
+	pterm.DefaultTable.WithHasHeader().WithHeaderRowSeparator("-").WithData(table).Render()
 }

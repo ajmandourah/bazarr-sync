@@ -25,6 +25,7 @@ type shows_info struct {
 		Title string `json:"title"`
 		Monitored bool `json:"monitored"`
 		SonarrSeriesId int `json:"sonarrSeriesId"`
+		ImdbId string `json:"imdbId"`
 	} `json:"data"`
 }
 
@@ -43,6 +44,7 @@ type movie struct{
 	Title string `json:"title"`
 	Monitored bool `json:"monitored"`
 	RadarrId int `json:"radarrId"`
+	ImdbId string `json:"imdbId"`
 	Subtitles []subtitle_info `json:"subtitles"`
 }
 

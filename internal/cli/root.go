@@ -12,7 +12,7 @@ import (
 
 var gss bool
 var no_framerate_fix bool
-
+var to_list bool 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "bazarr-sync",
@@ -46,5 +46,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&config.CfgFile, "config", "", "config file (default is ./config.yaml)")
 	rootCmd.PersistentFlags().BoolVar(&gss,"golden-section",false,"Use Golden-Section Search")
 	rootCmd.PersistentFlags().BoolVar(&no_framerate_fix,"no-framerate-fix",false,"Don't try to fix framerate")
+
+	rootCmd.PersistentFlags().BoolVar(&to_list,"list",false,"list your media with their respective imdbId")
 }
 
