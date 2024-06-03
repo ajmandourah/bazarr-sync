@@ -2,7 +2,7 @@
 ### Bulk sync your subtitles to your media.
 
 Bazarr let you download subs for your titles automatically.
-But if for some reason you needed to sync old subtitles, wither you need to do it because you have not synced them before or you have edited them elsewhere, you will be forced to do it one by one as there is no option to bulk sync them.
+But if for some reason you needed to sync old subtitles, wither you need to do it because you have not synced them before or you have edited them elsewhere, you will be forced to do it one by one as there is no option to bulk sync them except a per series option which won't help if you would like to sync movies or if you have several shows.
 This cli tool help you achieve that by utilizing bazarr's api.
 
 ## Installation 
