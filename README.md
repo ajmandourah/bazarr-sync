@@ -25,7 +25,7 @@ sudo docker pull ghcr.io/ajmandourah/bazarr-sync:latest
 create or copy the `config.yaml` file from the example folder. edit it to your settings. for docker you can use the bazarr container name if you have bazarr in a bridged network (not the default docker network). change the network name in the command.
 Run the command in the same folder where the `config.yaml` is located. change the command to your desired functionfor example `bazarr-sync sync shows`
 ```
-sudo docker run -it \
+sudo docker run -it --rm \
 -v ${PWD}/config.yaml:/usr/src/app/config.yaml \
 --network <NETWORK_NAME> \
 ghcr.io/ajmandourah/bazarr-sync:latest \
