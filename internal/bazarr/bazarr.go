@@ -1,8 +1,6 @@
 package bazarr
 
 import (
-	"github.com/ajmandourah/bazarr-sync/internal/client"
-	"github.com/ajmandourah/bazarr-sync/internal/config"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +8,10 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+
+	"github.com/ajmandourah/bazarr-sync/internal/client"
+	"github.com/ajmandourah/bazarr-sync/internal/config"
+	"github.com/pterm/pterm"
 )
 
 var cfg config.Config
@@ -164,6 +166,6 @@ func HealthCheck(cfg config.Config) {
 	}
 	var data version
 	json.Unmarshal(body,&data)
-	fmt.Println("Bazarr version: ", data.Data.Bazarr_version)
+	fmt.Println("Bazarr version: ", pterm.LightBlue(data.Data.Bazarr_version))
 	return
 }
