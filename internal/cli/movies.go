@@ -16,6 +16,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var radarrid []int
+
 // moviesCmd represents the movies command
 var moviesCmd = &cobra.Command{
 	Use:   "movies",
@@ -37,6 +39,8 @@ The script by default will try to not use the golden section search method and w
 
 func init() {
 	syncCmd.AddCommand(moviesCmd)
+	
+	moviesCmd.Flags().IntSliceVar(&radarrid,"radarr-id",[]int{},"Specify a list of radarr Ids to sync. Use --list to view your movies with respective radarr id.")
 }
 
 func sync_movies(cfg config.Config) {
@@ -44,14 +48,25 @@ func sync_movies(cfg config.Config) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr,"Query Error: Could not query movies")
 	}
-	fmt.Println("Syncing ", len(movies.Data), " Movies in your Bazarr library.")
+	fmt.Println("Syncing Movies in your Bazarr library.")
 	
+	movies:
 	for i, movie := range movies.Data {
+		if len(radarrid) > 0 {
+			for _, id := range radarrid {
+				if id == movie.RadarrId {
+					goto subtitle
+				}
+			}
+			continue movies
+		}
+
+		subtitle:
 		for _,subtitle := range movie.Subtitles {
 			p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(movie.Title) + " lang:" + pterm.LightRed(subtitle.Code2) + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(movies.Data)))
 			if subtitle.Path == "" || subtitle.File_size == 0 {
 				pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
-				p.Success(pterm.LightBlue(movie.Title," Could not find a subtitle. most likely an embedded. Lang: ",subtitle.Code2))
+				p.Success(pterm.LightBlue(movie.Title," Could not find a subtitle. most likely it is embedded. Lang: ",subtitle.Code2))
 				pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
 				continue
 			}
@@ -90,13 +105,13 @@ func list_movies(cfg config.Config) {
 		fmt.Fprintln(os.Stderr,"Query Error: Could not query movies")
 	}
 	table := pterm.TableData{
-		{"Title","imdbId"},
+		{"Title","RadarrId"},
 	}
 	pterm.Println(pterm.LightGreen("Listing all your movies with their respective imdbId (great for syncing specefic movie)\n"))
 
 	for _, movie := range movies.Data {
 		// pterm.Println(pterm.LightBlue(movie.Title), "\t", pterm.LightRed(movie.ImdbId))
-		t := []string{pterm.LightBlue(movie.Title),pterm.LightRed(movie.ImdbId)}
+		t := []string{pterm.LightBlue(movie.Title),pterm.LightRed(movie.RadarrId)}
 		table = append(table, t)
 	}
 	pterm.DefaultTable.WithHasHeader().WithHeaderRowSeparator("-").WithData(table).Render()

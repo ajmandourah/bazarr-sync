@@ -47,6 +47,6 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&gss,"golden-section",false,"Use Golden-Section Search")
 	rootCmd.PersistentFlags().BoolVar(&no_framerate_fix,"no-framerate-fix",false,"Don't try to fix framerate")
 
-	rootCmd.PersistentFlags().BoolVar(&to_list,"list",false,"list your media with their respective imdbId")
+	rootCmd.PersistentFlags().BoolVar(&to_list,"list",false,"list your media with their respective Radarr/Sonarr id.")
 }
 
