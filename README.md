@@ -84,3 +84,24 @@ Sync all tv shows subtitles
 ```
 bazarr-sync --config config.yaml sync shows
 ```
+
+## Syncing specefig movie/show subtitle
+The functionality to enable syncing specefic movies/shows are added. to do so follow these steps:
+- use the `--list` flag to view a list of your Shows/Movies with their respective sonarr/radarr ids. the output will shows as follows
+```
+Title                                                                                               | SonarrSeriesId
+--------------------------------------------------------------------------------------------------------------------
+3 Body Problem                                                                                      | 1304
+The Apothecary Diaries                                                                              | 1043
+As a Reincarnated Aristocrat, I'll Use My Appraisal Skill To Rise in the World                      | 953
+Avatar: The Last Airbender (2024)                                                                   | 1341
+The Banished Former Hero Lives as He Pleases                                                        | 961
+```
+- note the ids of your desired shows/movies to be synced
+- use the usual sync command and add the flag `--radarr-id` or `--sonarr-id`
+- PROFIT
+
+Example:
+```
+bazarr-sync --config config.yaml sync shows --sonarr-id 1302,953,961
+```
