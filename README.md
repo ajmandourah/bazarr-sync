@@ -1,4 +1,7 @@
 ![bazarr-sync](https://github.com/ajmandourah/bazarr-sync/assets/27051374/6c4acde4-bb9b-4172-8c67-c985c7994b28)
+
+![image](https://github.com/ajmandourah/bazarr-sync/assets/27051374/545803da-a061-4092-9f35-6bbabac598a7)
+
 ### Bulk sync your subtitles to your media.
 
 Bazarr let you download subs for your titles automatically.
