@@ -88,7 +88,7 @@ Sync all tv shows subtitles
 bazarr-sync --config config.yaml sync shows
 ```
 
-## Syncing specefig movie/show subtitle
+## Syncing specefic movie/show subtitle
 The functionality to enable syncing specefic movies/shows are added. to do so follow these steps:
 - use the `--list` flag to view a list of your Shows/Movies with their respective sonarr/radarr ids. the output will shows as follows
 ```
@@ -108,3 +108,7 @@ Example:
 ```
 bazarr-sync --config config.yaml sync shows --sonarr-id 1302,953,961
 ```
+
+## Syncing both movies and shows
+You can sync both movies and shows in the same time. what I recommend is using tmux and run the tool in 2 windows. this will assure that you won't loose progress.
+![image](https://github.com/ajmandourah/bazarr-sync/assets/27051374/9a514fa4-aa6d-4756-98ce-f8d68dcf4ffd)
