@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -42,9 +43,17 @@ func InitConfig() {
 		os.Exit(1)
 	}
 	viper.Unmarshal(&cfg)
+	var (
+		baseUrl string
+		err error
+	)
+	//this is a check in case the Address is a subpath
+	if strings.Contains(cfg.Address,"/") {
+		baseUrl, err = url.JoinPath(cfg.Protocol + "://" + cfg.Address)
+	}else {
+		baseUrl, err = url.JoinPath(cfg.Protocol + "://" + cfg.Address + ":" + cfg.Port)
+	}
 
-	//Bazarr url
-	baseUrl, err := url.JoinPath(cfg.Protocol + "://" + cfg.Address + ":" + cfg.Port)
 	if err != nil{
 		fmt.Fprintln(os.Stderr, "URL Error: ", err)
 	}
