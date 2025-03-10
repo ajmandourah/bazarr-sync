@@ -4,7 +4,12 @@ Copyright © 2024 ajmandourah
 package cli
 
 import (
+	"fmt"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+
 	"github.com/ajmandourah/bazarr-sync/internal/config"
 
 	"github.com/spf13/cobra"
@@ -48,5 +53,51 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&no_framerate_fix,"no-framerate-fix",false,"Don't try to fix framerate")
 
 	rootCmd.PersistentFlags().BoolVar(&to_list,"list",false,"list your media with their respective Radarr/Sonarr id.")
+}
+
+func runWithSignalHandler(syncFunc func(chan int)) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	progressChan := make(chan int, 1)
+	go syncFunc(progressChan)
+
+	lastSubtitleId := -1
+	for {
+		select {
+		case subtitle, more := <- progressChan:
+			if !more {
+				// All subtitles are done.
+				return
+			}
+
+			lastSubtitleId = subtitle
+
+		case _ = <- sigChan:
+			if lastSubtitleId != -1 {
+				showContinueMessage(lastSubtitleId)
+			} else {
+				fmt.Println("Stopping current sync. No subtitles have been processed yet.")
+			}
+			return
+		}
+	}
+}
+
+func showContinueMessage(lastSubtitleId int) {
+	fmt.Println("Stopping current sync. To continue from this point the next time, run")
+	commandName := os.Args[0]
+	var args []string
+	for i:=1; i<len(os.Args);i++ {
+		arg := os.Args[i]
+		if arg == "--continue-from" {
+			// Skip this and the next argument.
+			i++
+			continue
+		}
+		args = append(args, arg)
+	}
+	arguments := strings.Join(args, " ")
+	fmt.Printf("  %s %s --continue-from %d\n", commandName, arguments, lastSubtitleId)
 }
 

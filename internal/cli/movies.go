@@ -17,6 +17,7 @@ import (
 )
 
 var radarrid []int
+var moviesContinueFrom int
 
 // moviesCmd represents the movies command
 var moviesCmd = &cobra.Command{
@@ -33,7 +34,9 @@ The script by default will try to not use the golden section search method and w
 			list_movies(cfg)
 			return
 		}
-		sync_movies(cfg)
+		runWithSignalHandler(func(c chan int){
+			sync_movies(cfg, c)
+		})
 	},
 }
 
@@ -41,15 +44,17 @@ func init() {
 	syncCmd.AddCommand(moviesCmd)
 	
 	moviesCmd.Flags().IntSliceVar(&radarrid,"radarr-id",[]int{},"Specify a list of radarr Ids to sync. Use --list to view your movies with respective radarr id.")
+	moviesCmd.Flags().IntVar(&moviesContinueFrom,"continue-from",-1,"Continue with the given Radarr movie ID.")
 }
 
-func sync_movies(cfg config.Config) {
+func sync_movies(cfg config.Config, c chan int) {
 	movies, err := bazarr.QueryMovies(cfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr,"Query Error: Could not query movies")
 	}
 	fmt.Println("Syncing Movies in your Bazarr library.")
 	
+	skipForward := moviesContinueFrom != -1
 	movies:
 	for i, movie := range movies.Data {
 		if len(radarrid) > 0 {
@@ -61,7 +66,20 @@ func sync_movies(cfg config.Config) {
 			continue movies
 		}
 
+		if skipForward {
+			if movie.RadarrId == moviesContinueFrom {
+				skipForward = false
+			} else {
+				p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(movie.Title) + " lang:" + pterm.LightRed("N/A") + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(movies.Data)))
+				pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
+				p.Success(pterm.LightBlue(movie.Title," Skipping due to continue option."))
+				pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
+				continue
+			}
+		}
+
 		subtitle:
+		c <- movie.RadarrId
 		for _,subtitle := range movie.Subtitles {
 			p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(movie.Title) + " lang:" + pterm.LightRed(subtitle.Code2) + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(movies.Data)))
 			if subtitle.Path == "" || subtitle.File_size == 0 {
@@ -97,6 +115,8 @@ func sync_movies(cfg config.Config) {
 		}
 	} 
 	fmt.Println("Finished syncing subtitles of type Movies")
+	// Signal that we're done with all subtitles.
+	close(c)
 }
 
 func list_movies(cfg config.Config) {	

@@ -17,6 +17,8 @@ import (
 )
 
 var sonarrid []int
+var showsContinueFrom int
+
 // showsCmd represents the shows command
 var showsCmd = &cobra.Command{
 	Use:   "shows",
@@ -32,7 +34,9 @@ The script by default will try to not use the golden section search method and w
 			list_shows(cfg)
 			return
 		}
-		sync_shows(cfg)
+		runWithSignalHandler(func(c chan int){
+			sync_shows(cfg, c)
+		})
 	},
 }
 
@@ -40,15 +44,17 @@ func init() {
 	syncCmd.AddCommand(showsCmd)
 
 	showsCmd.Flags().IntSliceVar(&sonarrid,"sonarr-id",[]int{},"Specify a list of sonarr Ids to sync. Use --list to view your shows with respective sonarr id.")
+	showsCmd.Flags().IntVar(&showsContinueFrom,"continue-from",-1,"Continue with the given Sonarr episode ID.")
 }
 
-func sync_shows(cfg config.Config) {
+func sync_shows(cfg config.Config, c chan int) {
 	shows, err := bazarr.QuerySeries(cfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Query Error: Could not query series")
 	}
 	fmt.Println("Syncing shows in your Bazarr library.")
 
+	skipForward := showsContinueFrom != -1
 	shows:
 	for i, show := range shows.Data {
 
@@ -74,6 +80,18 @@ func sync_shows(cfg config.Config) {
 					pterm.LightGreen(":",episode.Title),
 					" lang:" + pterm.LightRed(subtitle.Code2) + " " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(shows.Data)))
 
+				if skipForward {
+					if episode.SonarrEpisodeId == showsContinueFrom {
+						skipForward = false
+					} else {
+						pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
+						p.Success(pterm.LightBlue(show.Title,":",episode.Title," Skipping due to continue option."))
+						pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
+						continue
+					}
+				}
+
+				c <- episode.SonarrEpisodeId
 				if subtitle.Path == "" || subtitle.File_size == 0 {
 					pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
 					p.Success(pterm.LightBlue(show.Title,":",episode.Title, "Could not find a subtitle. most likely it is embedded. Lang: ",subtitle.Code2))
@@ -108,6 +126,8 @@ func sync_shows(cfg config.Config) {
 		}
 	}
 	fmt.Println("Finished syncing subtitles of type Movies")
+	// Signal that we're done with all subtitles.
+	close(c)
 }
 
 
