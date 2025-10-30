@@ -23,7 +23,7 @@ var showsContinueFrom int
 var showsCmd = &cobra.Command{
 	Use:   "shows",
 	Short: "Sync subtitles to the audio track of the show's episodes",
-	Example: "bazarr-sync --config config.yaml sync movies --no-framerate-fix",
+	Example: "bazarr-sync --config config.yaml sync shows --no-framerate-fix",
 	Long: `By default, Bazarr will try to sync the sub to the audio track:0 of the media. 
 This can fail due to many reasons mainly due to failure of bazarr to extract audio info. This is unfortunatly out of my hands.
 The script by default will try to not use the golden section search method and will try to fix framerate issues. This can be changed using the flags.`,
@@ -125,7 +125,7 @@ func sync_shows(cfg config.Config, c chan int) {
 			}
 		}
 	}
-	fmt.Println("Finished syncing subtitles of type Movies")
+	fmt.Println("Finished syncing subtitles of type Shows")
 	// Signal that we're done with all subtitles.
 	close(c)
 }
@@ -134,7 +134,7 @@ func sync_shows(cfg config.Config, c chan int) {
 func list_shows(cfg config.Config) {	
 	shows, err := bazarr.QuerySeries(cfg)
 	if err != nil {
-		fmt.Fprintln(os.Stderr,"Query Error: Could not query movies")
+		fmt.Fprintln(os.Stderr,"Query Error: Could not query shows")
 	}
 	table := pterm.TableData{
 		{"Title","SonarrSeriesId"},
