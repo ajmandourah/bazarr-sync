@@ -10,11 +10,12 @@ import (
 )
 
 type Config struct {
+	BaseUrl string `mapstructure:"bazarr_url"`
 	Address string
-	Port string
+	Port    string
 	Protocol string
-	ApiToken string
-	BazarrUrl string
+	ApiToken   string `mapstructure:"bazarr_token"`
+	ComputedBaseUrl string
 	ApiUrl string
 }
 
@@ -38,28 +39,47 @@ func InitConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	} else {
-		fmt.Fprintln(os.Stderr,"Configuration Error: ", err)
-		fmt.Fprintln(os.Stderr,"Please supply a config.yaml file by using the flag --config or by placing the file in the same directory as bazarr-sync")
+		fmt.Fprintln(os.Stderr,"Configuration Error: Unable to read config. ", err)
 		os.Exit(1)
 	}
 	viper.Unmarshal(&cfg)
+
 	var (
-		baseUrl string
+		computedBaseUrl string
 		err error
 	)
-	//this is a check in case the Address is a subpath
-	if strings.Contains(cfg.Address,"/") {
-		baseUrl, err = url.JoinPath(cfg.Protocol + "://" + cfg.Address)
-	}else {
-		baseUrl, err = url.JoinPath(cfg.Protocol + "://" + cfg.Address + ":" + cfg.Port)
+
+	if cfg.BaseUrl != "" {
+		// If bazarr_url is provided, parse it directly
+		parsedUrl, err := url.Parse(cfg.BaseUrl)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "URL Error: ", err)
+			os.Exit(1)
+		}
+		cfg.Protocol = parsedUrl.Scheme
+		cfg.Address = parsedUrl.Host
+		computedBaseUrl = cfg.Protocol + "://" + cfg.Address
+		cfg.ApiUrl = computedBaseUrl + "/api/"
+	fmt.Fprintln(os.Stderr, "[DEBUG] ComputedBaseUrl:", cfg.ComputedBaseUrl)
+	fmt.Fprintln(os.Stderr, "[DEBUG] ApiUrl:", cfg.ApiUrl)
+	} else if strings.Contains(cfg.Address, "/") {
+		// this is a check in case the Address is a subpath
+		computedBaseUrl, err = url.JoinPath(cfg.Protocol + "://" + cfg.Address)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "URL Error: ", err)
+			os.Exit(1)
+		}
+		apiUrl, _ := url.JoinPath(computedBaseUrl, "api/")
+		cfg.ApiUrl = apiUrl
+	} else {
+		computedBaseUrl, err = url.JoinPath(cfg.Protocol + "://" + cfg.Address + ":" + cfg.Port)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "URL Error: ", err)
+			os.Exit(1)
+		}
+		apiUrl, _ := url.JoinPath(computedBaseUrl, "api/")
+		cfg.ApiUrl = apiUrl
 	}
 
-	if err != nil{
-		fmt.Fprintln(os.Stderr, "URL Error: ", err)
-	}
-	apiUrl, _:= url.JoinPath(baseUrl,"api/")
-
-	cfg.BazarrUrl = baseUrl
-	cfg.ApiUrl = apiUrl
-	
+	cfg.ComputedBaseUrl = computedBaseUrl
 }

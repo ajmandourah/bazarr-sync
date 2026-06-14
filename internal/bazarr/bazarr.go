@@ -2,9 +2,7 @@ package bazarr
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"strconv"
@@ -16,98 +14,41 @@ import (
 
 var cfg config.Config
 
-func QueryMovies(cfg config.Config) (movies_info, error) {	
+// queryJSON makes a GET request to the Bazarr API and decodes the JSON response
+// into the provided target. Returns an error if the request fails or the response
+// status is not 200.
+func queryJSON[T any](cfg config.Config, endpoint string) (T, error) {
 	c := client.GetClient(cfg.ApiToken)
-	url , _ := url.JoinPath(cfg.ApiUrl, "movies")
-	resp, err := c.Get(url) 
-	if err != nil{
-		fmt.Fprintln(os.Stderr, "Connection Error: ", err)
-		return movies_info{},err
+	apiUrl, _ := url.JoinPath(cfg.ApiUrl, endpoint)
+	resp, err := c.Get(apiUrl)
+	if err != nil {
+		return *new(T), fmt.Errorf("connection error to %s: %w", endpoint, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		fmt.Fprintln(os.Stderr, "Connection Error: ", "Response status is not 200. Are you sure the address/port are correct?")
-		return movies_info{}, errors.New("Error: Status code not 200")
+		return *new(T), fmt.Errorf("unexpected status %d from %s", resp.StatusCode, endpoint)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {	
-		fmt.Fprintln(os.Stderr, "Reading Url Error: ", err)
-		return movies_info{},err
-	}
-	var data movies_info
-	err = json.Unmarshal(body, &data)
+	var data T
+	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
-		fmt.Println("Error in Unmarshaling json body", err)
-		return movies_info{},err
+		return *new(T), fmt.Errorf("failed to decode %s response: %w", endpoint, err)
 	}
 	return data, nil
+}
+
+func QueryMovies(cfg config.Config) (movies_info, error) {
+	return queryJSON[movies_info](cfg, "movies")
 }
 
 func QuerySeries(cfg config.Config) (shows_info, error){
-	c := client.GetClient(cfg.ApiToken)
-	url , _ := url.JoinPath(cfg.ApiUrl, "series")
-	resp, err := c.Get(url) 
-	if err != nil{
-		fmt.Fprintln(os.Stderr, "Connection Error: ", err)
-		return shows_info{},err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		fmt.Fprintln(os.Stderr, "Connection Error: ", "Response status is not 200. Are you sure the address/port are correct?")
-		return shows_info{}, errors.New("Error: Status code not 200")
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {	
-		fmt.Fprintln(os.Stderr, "Reading Url Error: ", err)
-		return shows_info{},err
-	}
-	var data shows_info
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		fmt.Println("Error in Unmarshaling json body", err)
-		return shows_info{},err
-	}
-	return data, nil
+	return queryJSON[shows_info](cfg, "series")
 }
 
 func QueryEpisodes(cfg config.Config, seriesId int) (episodes_info,error){
-	c := client.GetClient(cfg.ApiToken)
-	u , _ := url.JoinPath(cfg.ApiUrl, "episodes")
-	_url,_ := url.Parse(u)
-	queryUrl := _url.Query()
-	queryUrl.Set("seriesid[]", strconv.Itoa(seriesId))
-	_url.RawQuery = queryUrl.Encode()
-	
-	resp, err := c.Get(_url.String()) 
-	if err != nil{
-		fmt.Fprintln(os.Stderr, "Connection Error: ", err)
-		return episodes_info{},err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		fmt.Fprintln(os.Stderr, "Connection Error: ", "Response status is not 200. Are you sure the address/port are correct?")
-		return episodes_info{}, errors.New("Error: Status code not 200")
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {	
-		fmt.Fprintln(os.Stderr, "Reading Url Error: ", err)
-		return episodes_info{},err
-	}
-	var data episodes_info
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		fmt.Println("Error in Unmarshaling json body", err)
-		return episodes_info{},err
-	}
-	return data, nil
-	
-	
+	queryUrl := fmt.Sprintf("episodes?seriesid[]=%d", seriesId)
+	return queryJSON[episodes_info](cfg, queryUrl)
 }
 
 func GetSyncParams(_type string, id int, subtitleInfo subtitle_info) Sync_params{
@@ -123,49 +64,52 @@ func GetSyncParams(_type string, id int, subtitleInfo subtitle_info) Sync_params
 }
 
 func Sync(cfg config.Config, params Sync_params) bool {
-	c := client.GetClient(cfg.ApiToken)
-	u , _ := url.JoinPath(cfg.ApiUrl, "subtitles")
+	c := client.GetSyncClient(cfg.ApiToken)
+	apiUrl , _ := url.JoinPath(cfg.ApiUrl, "subtitles")
 
-	_url,_ := url.Parse(u)
+	_url,_ := url.Parse(apiUrl)
 	queryUrl := _url.Query()
 	queryUrl.Set("path", params.Path)
 	queryUrl.Set("id", strconv.Itoa(params.Id))
 	queryUrl.Set("action", "sync")
 	queryUrl.Set("language", params.Lang)
 	queryUrl.Set("type", params.Type)
+	queryUrl.Set("gss", params.Gss)
+	queryUrl.Set("no_fix_framerate", params.No_framerate_fix)
 	_url.RawQuery = queryUrl.Encode()
 	resp, err := c.Patch(_url.String())
 	if err != nil{
 		fmt.Fprintln(os.Stderr, "Connection Error: ", err)
 		return false
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != 204 {	
 		return false
 	}
 	return true
-
 }
 
 func HealthCheck(cfg config.Config) {
 	c := client.GetClient(cfg.ApiToken)
-	url , _ := url.JoinPath(cfg.ApiUrl, "system/status")
-	resp, err := c.Get(url) 
+	apiUrl , _ := url.JoinPath(cfg.ApiUrl, "system/status")
+	resp, err := c.Get(apiUrl)
 	if err != nil{
 		fmt.Fprintln(os.Stderr, "Connection Error: ", err)
+		os.Exit(1)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		fmt.Fprintln(os.Stderr, "Connection Error: ", "Response status is not 200. Are you sure the address/port are correct?")
-		return
+		fmt.Fprintln(os.Stderr, "Connection Error: Bazarr returned status", resp.StatusCode, ". Check your URL and API token.")
+		os.Exit(1)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {	
-		fmt.Fprintln(os.Stderr, "Reading Url Error: ", err)
-	}
 	var data version
-	json.Unmarshal(body,&data)
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error parsing Bazarr response: ", err)
+		os.Exit(1)
+	}
 	fmt.Println("Bazarr version: ", pterm.LightBlue(data.Data.Bazarr_version))
-	return
 }

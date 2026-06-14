@@ -9,7 +9,9 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/ajmandourah/bazarr-sync/internal/bazarr"
 	"github.com/ajmandourah/bazarr-sync/internal/config"
 
 	"github.com/spf13/cobra"
@@ -17,7 +19,31 @@ import (
 
 var gss bool
 var no_framerate_fix bool
-var to_list bool 
+var to_list bool
+var maxRetries = 3 // default number of retries for failed syncs (applies to all commands)
+var retryDelay = 2 * time.Second // delay between retry attempts, multiplied by attempt number for exponential backoff
+
+type syncStats struct {
+	success int
+	skipped int
+	failed  int
+}
+
+func retrySync(cfg config.Config, params bazarr.Sync_params, title string, lang string) bool {
+	// Attempt first sync
+	if ok := bazarr.Sync(cfg, params); ok {
+		return true
+	}
+	// Retry with exponential backoff: delay * attempt
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		time.Sleep(retryDelay * time.Duration(attempt))
+		if ok := bazarr.Sync(cfg, params); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "bazarr-sync",
@@ -31,7 +57,7 @@ But if for some reason you needed to sync old subtitles, wither you need to do i
 This cli tool help you achieve that by utilizing bazarr's api. 
 
 Make sure to create a config.yaml file including your configuration in it. Use the provided config file as a template.
-	`, 
+	`,
 
 }
 
@@ -51,6 +77,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&config.CfgFile, "config", "", "config file (default is ./config.yaml)")
 	rootCmd.PersistentFlags().BoolVar(&gss,"golden-section",false,"Use Golden-Section Search")
 	rootCmd.PersistentFlags().BoolVar(&no_framerate_fix,"no-framerate-fix",false,"Don't try to fix framerate")
+	rootCmd.PersistentFlags().IntVar(&maxRetries,"retry-count",3,"Number of retries for failed syncs (exponential backoff)")
+	rootCmd.PersistentFlags().DurationVar(&retryDelay,"retry-delay",2*time.Second,"Base delay between retries, multiplied by attempt number")
 
 	rootCmd.PersistentFlags().BoolVar(&to_list,"list",false,"list your media with their respective Radarr/Sonarr id.")
 }
