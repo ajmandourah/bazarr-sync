@@ -8,23 +8,28 @@ Bazarr let you download subs for your titles automatically.
 But if for some reason you needed to sync old subtitles, wither you need to do it because you have not synced them before or you have edited them elsewhere, you will be forced to do it one by one as there is no option to bulk sync them except a per series option which won't help if you would like to sync movies or if you have several shows.
 This cli tool help you achieve that by utilizing bazarr's api.
 
-## Installation 
+## Installation
 
 ### Go
+
 - Install go in your system. this can be done through here. https://go.dev/doc/install
 - After installation in a terminal install the module
+
 ```
 go install github.com/ajmandourah/bazarr-sync/cmd/bazarr-sync@latest
 
 ```
+
 make sure your go path is included in your path. you should be able to use the command directly with `bazarr-sync` or `bazarr-sync.exe` in windows.
 
 ### Docker
-pull the image 
+
+pull the image
 ```
 sudo docker pull ghcr.io/ajmandourah/bazarr-sync:latest
 
 ```
+
 create or copy the `config.yaml` file from the example folder. edit it to your settings. for docker you can use the bazarr container name if you have bazarr in a bridged network (not the default docker network). change the network name in the command.
 Run the command in the same folder where the `config.yaml` is located. change the command to your desired functionfor example `bazarr-sync sync shows`
 ```
@@ -36,27 +41,34 @@ bazarr-sync sync movies
 ```
 
 ## Configuration
+
 use the provided config.yaml file as a template. fill in the required fields.
 either direct the flag --config to your config file or place it in the working directiory where you bazarr-sync is located.
+
+**Option 1: Single URL field (simplest)**
 ```yaml
-#config file example, please don't use quotes
-###########################
-#
-#Address: the address of your bazarr instance. this can be either an ip address or a url (if you reverse proxy bazarr), 
+bazarr_url: https://bazarr.example.com
+bazarr_token: your_api_token_here
+```
+
+**Option 2: Split fields (legacy format)**
+```yaml
+#Address: the address of your bazarr instance. this can be either an ip address or a url (if you reverse proxy bazarr),
 #this can also be bazarr's container name if you use docker, make sure bazarr-sync instance is in the same network as bazarr and the network not the default
 #docker network as name resolution won't happen there.
 Address: <bazarr_address>
-#
-#Port: bazarrs port. by default bazarr uses 6767. in case of reverse proxy, you can use 443 or 80 as per your configuration 
+
+#Port: bazarrs port. by default bazarr uses 6767. in case of reverse proxy, you can use 443 or 80 as per your configuration
 Port: <port>
-#
+
 #protocol: this can be http or https
 Protocol: https
-#
+
 #ApiToken: you can get this from bazarr setting>general . no quotes needed.
 ApiToken: <Bazarr_api_token>
 ```
-## Usage:
+
+## Usage
 
 ```
 Make sure to create a config.yaml file including your configuration in it.
@@ -74,25 +86,31 @@ Available Commands:
   sync        Sync subtitles to the audio track of the media
 
 Flags:
-      --config string      config file (default is ./config.yaml)
-      --golden-section     Use Golden-Section Search
-  -h, --help               help for bazarr-sync
-      --no-framerate-fix   Don't try to fix framerate
+      --config string          config file (default is ./config.yaml)
+      --golden-section         Use Golden-Section Search
+      --list                   list your media with their respective Radarr/Sonarr id.
+  -h, --help                   help for bazarr-sync
+      --no-framerate-fix       Don't try to fix framerate
+      --retry-count int        Number of retries for failed syncs (exponential backoff) (default 3)
+      --retry-delay duration   Base delay between retries, multiplied by attempt number (default 2s)
 ```
+
 Sync all movies subtitles
 ```
 bazarr-sync --config config.yaml sync movies
 ```
+
 Sync all tv shows subtitles
 ```
 bazarr-sync --config config.yaml sync shows
 ```
 
-## Syncing specefic movie/show subtitle
+## Syncing specific movie/show subtitle
+
 The functionality to enable syncing specefic movies/shows are added. to do so follow these steps:
 - use the `--list` flag to view a list of your Shows/Movies with their respective sonarr/radarr ids. the output will shows as follows
 ```
-Title                                                                                               | SonarrSeriesId
+Title                                                                                               | RadarrId
 --------------------------------------------------------------------------------------------------------------------
 3 Body Problem                                                                                      | 1304
 The Apothecary Diaries                                                                              | 1043
@@ -109,6 +127,28 @@ Example:
 bazarr-sync --config config.yaml sync shows --sonarr-id 1302,953,961
 ```
 
+## Continue from where you left off
+
+If you need to stop a sync mid-way (Ctrl+C), the tool will save your progress and tell you how to resume:
+
+```
+Stopping current sync. To continue from this point the next time, run
+  bazarr-sync sync movies --continue-from 1304
+```
+
+This works for both movies and shows. For movies, use the Radarr ID; for shows, use the Sonarr Episode ID.
+
+## Resuming interrupted syncs
+
+If the process is interrupted (e.g., network issue, Ctrl+C), you can resume from where you left off using the `--continue-from` flag:
+
+```
+bazarr-sync --config config.yaml sync movies --continue-from 1304
+```
+
+This will skip everything up to the given ID and continue syncing from that point.
+
 ## Syncing both movies and shows
+
 You can sync both movies and shows in the same time. what I recommend is using tmux and run the tool in 2 windows. this will assure that you won't loose progress.
 ![image](https://github.com/ajmandourah/bazarr-sync/assets/27051374/9a514fa4-aa6d-4756-98ce-f8d68dcf4ffd)
