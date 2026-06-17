@@ -51,13 +51,17 @@ func init() {
 	moviesCmd.Flags().IntVar(&moviesContinueFrom,"continue-from",-1,"Continue with the given Radarr movie ID.")
 }
 
-// printResult prints a colored success/cross on stderr and a newline.
-func printResult(isTerminal bool, label string, green bool) {
+// printMovieResult prints the result line on stderr, replacing the spinner inline.
+func printMovieResult(isTerminal bool, label string, green bool) {
 	if isTerminal {
-		fmt.Fprint(os.Stderr, "\033[K") // clear spinner line
-		fmt.Fprintf(os.Stderr, "  %s\n", pterm.LightGreen("✅ "+label))
+		fmt.Fprint(os.Stderr, "\r\033[K") // go to start of line, clear it
+		if green {
+			fmt.Fprintf(os.Stderr, "  %s\n", pterm.LightGreen("✅ "+label))
+		} else {
+			fmt.Fprintf(os.Stderr, "  %s\n", pterm.LightRed("❌ "+label))
+		}
 	} else {
-		// non-TTY: label already printed, just print status on next line
+		// non-TTY: just print label + status on stdout
 		if green {
 			fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
 		} else {
@@ -103,13 +107,14 @@ subtitle:
 			label := fmt.Sprintf("lang:%s %s", subtitle.Code2, movie.Title)
 
 			if isTerminal {
-				fmt.Printf("  %s\n", pterm.Gray(label)) // print label once, with newline
+				// Single line: label + spinner on stderr
 				s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
-				s.Writer = os.Stderr // stderr — never corrupt stdout on narrow/resize
+				s.Writer = os.Stderr
+				s.Suffix = " " + label
 				s.Start()
 
 				if subtitle.Path == "" || subtitle.File_size == 0 {
-					printResult(isTerminal, label, false)
+					printMovieResult(isTerminal, label, false)
 					stats.skipped++
 					continue
 				}
@@ -119,20 +124,20 @@ subtitle:
 
 				ok := bazarr.Sync(cfg, params)
 				if ok {
-					printResult(isTerminal, label, true)
+					printMovieResult(isTerminal, label, true)
 					stats.success++
 					continue
 				}
 
 				// Retry with exponential backoff
-				fmt.Fprint(os.Stderr, "\033[K") // clear spinner line
+				fmt.Fprint(os.Stderr, "\r\033[K") // clear spinner line
 				fmt.Fprintf(os.Stderr, "  WARNING: Error while syncing lang:%s\n", subtitle.Code2)
 				ok = retrySync(cfg, params, movie.Title, subtitle.Code2)
 				if ok {
-					printResult(isTerminal, label, true)
+					printMovieResult(isTerminal, label, true)
 					stats.success++
 				} else {	
-					printResult(isTerminal, label, false)
+					printMovieResult(isTerminal, label, false)
 					stats.failed++
 				}
 			} else {
