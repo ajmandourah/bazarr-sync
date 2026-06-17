@@ -48,21 +48,6 @@ func init() {
 	showsCmd.Flags().IntVar(&showsContinueFrom,"continue-from",-1,"Continue with the given Sonarr episode ID.")
 }
 
-// printShowStatus prints a status line to the correct stream.
-func printShowStatus(isTerminal bool, prefix string, message string) {
-	if isTerminal {
-		fmt.Fprint(os.Stderr, "\033[K") // clear rest of spinner line
-	}
-	if prefix != "" {
-		fmt.Printf("  %s", prefix)
-	}
-	if message != "" {
-		fmt.Println(message)
-	} else {
-		fmt.Println()
-	}
-}
-
 func sync_shows(cfg config.Config, c chan int) {
 	shows, err := bazarr.QuerySeries(cfg)
 	if err != nil {
@@ -95,6 +80,8 @@ episodes:
 		for _, episode := range episodes.Data {
 			for _, subtitle := range episode.Subtitles {
 
+				label := fmt.Sprintf("  lang:%s S%02dE%02d %s", subtitle.Code2, episode.SeasonNumber, episode.EpisodeNumber, show.Title)
+
 				if isTerminal {
 					s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
 					s.Writer = os.Stderr // stderr — never corrupt stdout on narrow/resize
@@ -104,7 +91,6 @@ episodes:
 						if episode.SonarrEpisodeId == showsContinueFrom {
 							skipForward = false
 						} else {
-							printShowStatus(isTerminal, "SKIP", "(continue)")
 							stats.skipped++
 							continue
 						}
@@ -112,7 +98,7 @@ episodes:
 
 					c <- episode.SonarrEpisodeId
 					if subtitle.Path == "" || subtitle.File_size == 0 {
-						printShowStatus(isTerminal, "SKIP", "(no sub file)")
+						pterm.Info.Printf("%s\n", pterm.Gray("(no sub file - probably embedded)"))
 						stats.skipped++
 						continue
 					}
@@ -121,29 +107,30 @@ episodes:
 					if no_framerate_fix {params.No_framerate_fix = "True"}
 					ok := bazarr.Sync(cfg, params)
 					if ok {
-						printShowStatus(isTerminal, "SYNCED", "")
+						fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
 						stats.success++
 						continue
 					} else {
 						// Retry with exponential backoff
 						fmt.Fprint(os.Stderr, "\033[K") // clear spinner line
-						fmt.Fprintf(os.Stderr, "  WARNING: %s lang:%s\n", "Error while syncing", subtitle.Code2)
+						fmt.Fprintf(os.Stderr, "  WARNING: Error while syncing lang:%s\n", subtitle.Code2)
 						ok = retrySync(cfg, params, show.Title+": "+episode.Title, subtitle.Code2)
 						if ok {
-							printShowStatus(isTerminal, "SYNCED", "")
+							fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
 							stats.success++
 						} else {
-							printShowStatus(isTerminal, "FAILED", "")
+							fmt.Printf("  %s\n", pterm.LightRed("[Error]"))
 							stats.failed++
 						}
 					}
 				} else {
 					// Non-TTY: simple text output, no spinner animation
+					fmt.Printf("%s\n", label)
+
 					if skipForward {
 						if episode.SonarrEpisodeId == showsContinueFrom {
 							skipForward = false
 						} else {
-							fmt.Printf("  SKIP %s:%s (continue)\n", show.Title, episode.Title)
 							stats.skipped++
 							continue
 						}
@@ -151,7 +138,7 @@ episodes:
 
 					c <- episode.SonarrEpisodeId
 					if subtitle.Path == "" || subtitle.File_size == 0 {
-						fmt.Printf("  SKIP %s:%s lang=%s (no subtitle file)\n", show.Title, episode.Title, subtitle.Code2)
+						pterm.Info.Printf("    (no sub file - probably embedded)\n")
 						stats.skipped++
 						continue
 					}
@@ -160,11 +147,11 @@ episodes:
 					if no_framerate_fix {params.No_framerate_fix = "True"}
 					ok := bazarr.Sync(cfg, params)
 					if ok {
-						fmt.Printf("  SYNCED %s:%s lang=%s\n", show.Title, episode.Title, subtitle.Code2)
+						fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
 						stats.success++
 						continue
 					} else {
-						fmt.Printf("  FAILED %s:%s lang=%s\n", show.Title, episode.Title, subtitle.Code2)
+						fmt.Printf("  %s\n", pterm.LightRed("[Error]"))
 						stats.failed++
 					}
 				}

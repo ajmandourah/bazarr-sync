@@ -51,22 +51,6 @@ func init() {
 	moviesCmd.Flags().IntVar(&moviesContinueFrom,"continue-from",-1,"Continue with the given Radarr movie ID.")
 }
 
-// printMovieStatus prints a status line to the correct stream.
-// In TTY mode: writes to stderr (same as spinner). In non-TTY: writes to stdout.
-func printMovieStatus(isTerminal bool, prefix string, message string) {
-	if isTerminal {
-		fmt.Fprint(os.Stderr, "\033[K") // clear rest of spinner line
-	}
-	if prefix != "" {
-		fmt.Printf("  %s", prefix)
-	}
-	if message != "" {
-		fmt.Println(message)
-	} else {
-		fmt.Println()
-	}
-}
-
 func sync_movies(cfg config.Config, c chan int) {
 	movies, err := bazarr.QueryMovies(cfg)
 	if err != nil {
@@ -93,10 +77,6 @@ moviesLoop:
 			if movie.RadarrId == moviesContinueFrom {
 				skipForward = false
 			} else {
-				s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
-				s.Writer = os.Stderr // stderr — never corrupt stdout on narrow/resize
-				s.Start()
-				printMovieStatus(isTerminal, "SKIP", "(continue)")
 				stats.skipped++
 				continue
 			}
@@ -105,13 +85,15 @@ moviesLoop:
 subtitle:
 		c <- movie.RadarrId
 		for _, subtitle := range movie.Subtitles {
+			label := fmt.Sprintf("  lang:%s %s", subtitle.Code2, movie.Title)
+
 			if isTerminal {
 				s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
 				s.Writer = os.Stderr // stderr — never corrupt stdout on narrow/resize
 				s.Start()
-				c <- movie.RadarrId
+
 				if subtitle.Path == "" || subtitle.File_size == 0 {
-					printMovieStatus(isTerminal, "SKIP", "(no sub file)")
+					fmt.Printf("    %s\n", pterm.Gray("(no sub file - probably embedded)"))
 					stats.skipped++
 					continue
 				}
@@ -121,26 +103,28 @@ subtitle:
 
 				ok := bazarr.Sync(cfg, params)
 				if ok {
-					printMovieStatus(isTerminal, "SYNCED", "")
+					fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
 					stats.success++
 					continue
 				}
 
 				// Retry with exponential backoff
 				fmt.Fprint(os.Stderr, "\033[K") // clear spinner line
-				fmt.Fprintf(os.Stderr, "  WARNING: %s lang:%s\n", "Error while syncing", subtitle.Code2)
+				fmt.Fprintf(os.Stderr, "  WARNING: Error while syncing lang:%s\n", subtitle.Code2)
 				ok = retrySync(cfg, params, movie.Title, subtitle.Code2)
 				if ok {
-					printMovieStatus(isTerminal, "SYNCED", "")
+					fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
 					stats.success++
 				} else {	
-					printMovieStatus(isTerminal, "FAILED", "")
+					fmt.Printf("  %s\n", pterm.LightRed("[Error]"))
 					stats.failed++
 				}
 			} else {
 				// Non-TTY: simple text output, no spinner animation
+				fmt.Printf("%s\n", label)
+
 				if subtitle.Path == "" || subtitle.File_size == 0 {
-					fmt.Printf("  SKIP %s lang=%s (no subtitle file)\n", movie.Title, subtitle.Code2)
+					pterm.Info.Printf("    (no sub file - probably embedded)\n")
 					stats.skipped++
 					continue
 				}
@@ -150,11 +134,11 @@ subtitle:
 
 				ok := bazarr.Sync(cfg, params)
 				if ok {
-					fmt.Printf("  SYNCED %s lang=%s\n", movie.Title, subtitle.Code2)
+					fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
 					stats.success++
 					continue
 				} else {	
-					fmt.Printf("  FAILED %s lang=%s\n", movie.Title, subtitle.Code2)
+					fmt.Printf("  %s\n", pterm.LightRed("[Error]"))
 					stats.failed++
 				}
 			}

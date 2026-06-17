@@ -37,6 +37,8 @@ type episode struct {
 	Title string `json:"title"`
 	Monitored bool `json:"monitored"`
 	SonarrEpisodeId int `json:"sonarrEpisodeId"`
+	SeasonNumber int `json:"season"`
+	EpisodeNumber int `json:"episode"`
 	Subtitles []subtitle_info `json:"subtitles"`
 }
 
