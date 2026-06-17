@@ -51,6 +51,21 @@ func init() {
 	moviesCmd.Flags().IntVar(&moviesContinueFrom,"continue-from",-1,"Continue with the given Radarr movie ID.")
 }
 
+// printResult prints a colored success/cross on stderr and a newline.
+func printResult(isTerminal bool, label string, green bool) {
+	if isTerminal {
+		fmt.Fprint(os.Stderr, "\033[K") // clear spinner line
+		fmt.Fprintf(os.Stderr, "  %s\n", pterm.LightGreen("✅ "+label))
+	} else {
+		// non-TTY: label already printed, just print status on next line
+		if green {
+			fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
+		} else {
+			fmt.Printf("  %s\n", pterm.LightRed("[Error]"))
+		}
+	}
+}
+
 func sync_movies(cfg config.Config, c chan int) {
 	movies, err := bazarr.QueryMovies(cfg)
 	if err != nil {
@@ -85,16 +100,16 @@ moviesLoop:
 subtitle:
 		c <- movie.RadarrId
 		for _, subtitle := range movie.Subtitles {
-			label := fmt.Sprintf("  lang:%s %s", subtitle.Code2, movie.Title)
+			label := fmt.Sprintf("lang:%s %s", subtitle.Code2, movie.Title)
 
 			if isTerminal {
-				fmt.Println(label)
+				fmt.Printf("  %s\n", pterm.Gray(label)) // print label once, with newline
 				s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
 				s.Writer = os.Stderr // stderr — never corrupt stdout on narrow/resize
 				s.Start()
 
 				if subtitle.Path == "" || subtitle.File_size == 0 {
-					fmt.Printf("    %s\n", pterm.Gray("(no sub file - probably embedded)"))
+					printResult(isTerminal, label, false)
 					stats.skipped++
 					continue
 				}
@@ -104,7 +119,7 @@ subtitle:
 
 				ok := bazarr.Sync(cfg, params)
 				if ok {
-					fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
+					printResult(isTerminal, label, true)
 					stats.success++
 					continue
 				}
@@ -114,15 +129,15 @@ subtitle:
 				fmt.Fprintf(os.Stderr, "  WARNING: Error while syncing lang:%s\n", subtitle.Code2)
 				ok = retrySync(cfg, params, movie.Title, subtitle.Code2)
 				if ok {
-					fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
+					printResult(isTerminal, label, true)
 					stats.success++
 				} else {	
-					fmt.Printf("  %s\n", pterm.LightRed("[Error]"))
+					printResult(isTerminal, label, false)
 					stats.failed++
 				}
 			} else {
 				// Non-TTY: simple text output, no spinner animation
-				fmt.Printf("%s\n", label)
+				fmt.Printf("  %s\n", label)
 
 				if subtitle.Path == "" || subtitle.File_size == 0 {
 					pterm.Info.Printf("    (no sub file - probably embedded)\n")
