@@ -83,6 +83,7 @@ episodes:
 				label := fmt.Sprintf("  lang:%s S%02dE%02d %s", subtitle.Code2, episode.SeasonNumber, episode.EpisodeNumber, show.Title)
 
 				if isTerminal {
+					fmt.Println(label)
 					s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
 					s.Writer = os.Stderr // stderr — never corrupt stdout on narrow/resize
 					s.Start()
@@ -91,6 +92,7 @@ episodes:
 						if episode.SonarrEpisodeId == showsContinueFrom {
 							skipForward = false
 						} else {
+							fmt.Fprint(os.Stderr, "\033[K") // clear spinner line
 							stats.skipped++
 							continue
 						}

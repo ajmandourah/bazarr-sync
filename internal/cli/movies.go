@@ -88,6 +88,7 @@ subtitle:
 			label := fmt.Sprintf("  lang:%s %s", subtitle.Code2, movie.Title)
 
 			if isTerminal {
+				fmt.Println(label)
 				s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
 				s.Writer = os.Stderr // stderr — never corrupt stdout on narrow/resize
 				s.Start()
