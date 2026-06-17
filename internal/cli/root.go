@@ -20,6 +20,7 @@ import (
 var gss bool
 var no_framerate_fix bool
 var to_list bool
+var lang string
 var maxRetries = 3 // default number of retries for failed syncs (applies to all commands)
 var retryDelay = 2 * time.Second // delay between retry attempts, multiplied by attempt number for exponential backoff
 
@@ -81,6 +82,7 @@ func init() {
 	rootCmd.PersistentFlags().DurationVar(&retryDelay,"retry-delay",2*time.Second,"Base delay between retries, multiplied by attempt number")
 
 	rootCmd.PersistentFlags().BoolVar(&to_list,"list",false,"list your media with their respective Radarr/Sonarr id.")
+	rootCmd.PersistentFlags().StringVar(&lang,"lang","",`Specify language code to sync (e.g., "en", "fr", "de", "ar"). Use two-letter ISO 639-1 codes.`)
 }
 
 func runWithSignalHandler(syncFunc func(chan int)) {
@@ -128,4 +130,3 @@ func showContinueMessage(lastSubtitleId int) {
 	arguments := strings.Join(args, " ")
 	fmt.Printf("  %s %s --continue-from %d\n", commandName, arguments, lastSubtitleId)
 }
-
