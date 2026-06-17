@@ -48,16 +48,17 @@ func init() {
 	showsCmd.Flags().IntVar(&showsContinueFrom,"continue-from",-1,"Continue with the given Sonarr episode ID.")
 }
 
-// printShowResult prints a colored success/cross on stderr and a newline.
+// printShowResult prints the result line on stderr, replacing the spinner inline.
 func printShowResult(isTerminal bool, label string, green bool) {
 	if isTerminal {
-		fmt.Fprint(os.Stderr, "\033[K") // clear spinner line
+		fmt.Fprint(os.Stderr, "\r\033[K") // go to start of line, clear it
 		if green {
-			fmt.Fprintf(os.Stderr, "  %s %s\n", pterm.LightGreen("✅"), pterm.Gray(label))
+			fmt.Fprintf(os.Stderr, "  %s\n", pterm.LightGreen("✅ "+label))
 		} else {
-			fmt.Fprintf(os.Stderr, "  %s %s\n", pterm.LightRed("❌"), pterm.Gray(label))
+			fmt.Fprintf(os.Stderr, "  %s\n", pterm.LightRed("❌ "+label))
 		}
 	} else {
+		// non-TTY: label already printed, just print status on next line
 		if green {
 			fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
 		} else {
@@ -101,9 +102,10 @@ episodes:
 				label := fmt.Sprintf("lang:%s S%02dE%02d %s", subtitle.Code2, episode.SeasonNumber, episode.EpisodeNumber, show.Title)
 
 				if isTerminal {
-					fmt.Printf("  %s\n", pterm.Gray(label)) // print once
+					// Single line: label + spinner on stderr
 					s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
-					s.Writer = os.Stderr // stderr — never corrupt stdout on narrow/resize
+					s.Writer = os.Stderr
+					s.Suffix = " " + label
 					s.Start()
 
 					if skipForward {
@@ -132,7 +134,7 @@ episodes:
 						continue
 					} else {
 						// Retry with exponential backoff
-						fmt.Fprint(os.Stderr, "\033[K") // clear spinner line
+						fmt.Fprint(os.Stderr, "\r\033[K") // clear spinner line
 						fmt.Fprintf(os.Stderr, "  WARNING: Error while syncing lang:%s\n", subtitle.Code2)
 						ok = retrySync(cfg, params, show.Title+": "+episode.Title, subtitle.Code2)
 						if ok {
