@@ -4,15 +4,17 @@ Copyright © 2024 ajmandourah
 package cli
 
 import (
+	"fmt"
+	"os"
+	"time"
+
 	"github.com/ajmandourah/bazarr-sync/internal/bazarr"
 	"github.com/ajmandourah/bazarr-sync/internal/config"
-	"github.com/spf13/cobra"
-	"golang.org/x/term"
-	"os"
-	"fmt"
-	"strconv"
-
+	"github.com/briandowns/spinner"
 	"github.com/pterm/pterm"
+	"golang.org/x/term"
+
+	"github.com/spf13/cobra"
 )
 
 var sonarrid []int
@@ -46,6 +48,21 @@ func init() {
 	showsCmd.Flags().IntVar(&showsContinueFrom,"continue-from",-1,"Continue with the given Sonarr episode ID.")
 }
 
+// printShowStatus prints a status line to the correct stream.
+func printShowStatus(isTerminal bool, prefix string, message string) {
+	if isTerminal {
+		fmt.Fprint(os.Stderr, "\033[K") // clear rest of spinner line
+	}
+	if prefix != "" {
+		fmt.Printf("  %s", prefix)
+	}
+	if message != "" {
+		fmt.Println(message)
+	} else {
+		fmt.Println()
+	}
+}
+
 func sync_shows(cfg config.Config, c chan int) {
 	shows, err := bazarr.QuerySeries(cfg)
 	if err != nil {
@@ -58,7 +75,7 @@ func sync_shows(cfg config.Config, c chan int) {
 	stats := syncStats{}
 	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 showsLoop:
-	for i, show := range shows.Data {
+	for _, show := range shows.Data {
 
 		if len(sonarrid) > 0 {
 			for _, id := range sonarrid {
@@ -77,18 +94,17 @@ episodes:
 
 		for _, episode := range episodes.Data {
 			for _, subtitle := range episode.Subtitles {
-				label := pterm.LightBlue(show.Title+":"+episode.Title)+ " lang:"+pterm.LightRed(subtitle.Code2)+" "+strconv.Itoa(i+1)+"/"+strconv.Itoa(len(shows.Data))
 
 				if isTerminal {
-					p,_ := pterm.DefaultSpinner.Start(label)
+					s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
+					s.Writer = os.Stderr // stderr — never corrupt stdout on narrow/resize
+					s.Start()
 
 					if skipForward {
 						if episode.SonarrEpisodeId == showsContinueFrom {
 							skipForward = false
 						} else {
-							pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
-							p.Success("Skipping due to continue option.")
-							pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
+							printShowStatus(isTerminal, "SKIP", "(continue)")
 							stats.skipped++
 							continue
 						}
@@ -96,9 +112,7 @@ episodes:
 
 					c <- episode.SonarrEpisodeId
 					if subtitle.Path == "" || subtitle.File_size == 0 {
-						pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
-						p.Success("Could not find a subtitle. most likely it is embedded. Lang: ",subtitle.Code2)
-						pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
+						printShowStatus(isTerminal, "SKIP", "(no sub file)")
 						stats.skipped++
 						continue
 					}
@@ -107,18 +121,19 @@ episodes:
 					if no_framerate_fix {params.No_framerate_fix = "True"}
 					ok := bazarr.Sync(cfg, params)
 					if ok {
-						p.Success("Synced lang: "+subtitle.Code2)
+						printShowStatus(isTerminal, "SYNCED", "")
 						stats.success++
 						continue
 					} else {
 						// Retry with exponential backoff
-						p.Warning("Error while syncing lang: "+subtitle.Code2+" Retrying..")
+						fmt.Fprint(os.Stderr, "\033[K") // clear spinner line
+						fmt.Fprintf(os.Stderr, "  WARNING: %s lang:%s\n", "Error while syncing", subtitle.Code2)
 						ok = retrySync(cfg, params, show.Title+": "+episode.Title, subtitle.Code2)
 						if ok {
-							p.Success("Synced lang: "+subtitle.Code2)
+							printShowStatus(isTerminal, "SYNCED", "")
 							stats.success++
 						} else {
-							p.Fail("Unable to sync lang: "+subtitle.Code2)
+							printShowStatus(isTerminal, "FAILED", "")
 							stats.failed++
 						}
 					}
@@ -175,7 +190,6 @@ func list_shows(cfg config.Config) {
 	pterm.Println(pterm.LightGreen("Listing all your Series with their respective Sonarr ID (great for syncing specific series)\n"))
 
 	for _, show := range shows.Data {
-		// pterm.Println(pterm.LightBlue(movie.Title), "\t", pterm.LightRed(movie.ImdbId))
 		t := []string{pterm.LightBlue(show.Title),pterm.LightRed(show.SonarrSeriesId)}
 		table = append(table, t)
 	}
