@@ -44,7 +44,7 @@ The script by default will try to not use the golden section search method and w
 func init() {
 	syncCmd.AddCommand(showsCmd)
 
-	showsCmd.Flags().IntSliceVar(&sonarrid,"sonarr-id",[]int{},"Specify a list of sonarr Ids to sync. Use --list to view your shows with respective sonarr id.")
+	showsCmd.Flags().IntSliceVar(&sonarrid,"sonarr-id",[]int{},`Specify a list of sonarr Ids to sync. Use --list to view your shows with respective sonarr id.`)
 	showsCmd.Flags().IntVar(&showsContinueFrom,"continue-from",-1,"Continue with the given Sonarr episode ID.")
 }
 
@@ -98,6 +98,10 @@ episodes:
 
 		for _, episode := range episodes.Data {
 			for _, subtitle := range episode.Subtitles {
+				// Language filtering
+				if lang != "" && subtitle.Code2 != lang {
+					continue
+				}
 
 				label := fmt.Sprintf("lang:%s S%02dE%02d %s", subtitle.Code2, episode.SeasonNumber, episode.EpisodeNumber, show.Title)
 
@@ -186,7 +190,7 @@ episodes:
 func list_shows(cfg config.Config) {
 	shows, err := bazarr.QuerySeries(cfg)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Query Error: Could not query shows:", err)
+		fmt.Fprintln(os.Stderr, "Query Error: Could not query series:", err)
 		os.Exit(1)
 	}
 	table := pterm.TableData{

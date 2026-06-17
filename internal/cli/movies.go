@@ -51,7 +51,7 @@ func init() {
 	moviesCmd.Flags().IntVar(&moviesContinueFrom,"continue-from",-1,"Continue with the given Radarr movie ID.")
 }
 
-// startSpinner creates and starts a spinner with plain label suffix (no ANSI codes — they break \r cursor tracking).
+// startMovieSpinner creates and starts a spinner with plain label suffix (no ANSI codes — they break \r cursor tracking).
 // Returns the spinner so FinalMSG/Stop can be used on completion.
 func startMovieSpinner(label string) *spinner.Spinner {
 	s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
@@ -61,7 +61,7 @@ func startMovieSpinner(label string) *spinner.Spinner {
 	return s
 }
 
-// stopSpinner sets FinalMSG with colored result and stops the spinner (inline replacement on one line).
+// stopMovieSpinner sets FinalMSG with colored result and stops the spinner (inline replacement on one line).
 func stopMovieSpinner(s *spinner.Spinner, label string, green bool) {
 	if green {
 		s.FinalMSG = fmt.Sprintf("  %s%s\n", pterm.LightGreen("✅ "), pterm.LightGreen(label))
@@ -105,6 +105,11 @@ moviesLoop:
 subtitle:
 		c <- movie.RadarrId
 		for _, subtitle := range movie.Subtitles {
+			// Language filtering
+			if lang != "" && subtitle.Code2 != lang {
+				continue
+			}
+
 			label := fmt.Sprintf("lang:%s %s", subtitle.Code2, movie.Title)
 
 			if isTerminal {
