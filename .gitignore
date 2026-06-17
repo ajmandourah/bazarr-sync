@@ -3,3 +3,4 @@ cmd/bazarr-sync/config.yaml
 
 bazarr-sync
 config.yaml
+AGENTS.md

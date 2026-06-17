@@ -47,8 +47,24 @@ func QuerySeries(cfg config.Config) (shows_info, error){
 }
 
 func QueryEpisodes(cfg config.Config, seriesId int) (episodes_info,error){
-	queryUrl := fmt.Sprintf("episodes?seriesid[]=%d", seriesId)
-	return queryJSON[episodes_info](cfg, queryUrl)
+	c := client.GetClient(cfg.ApiToken)
+	fullUrl := fmt.Sprintf("%sepisodes?seriesid[]=%d", cfg.ApiUrl, seriesId)
+	resp, err := c.Get(fullUrl)
+	if err != nil {
+		return episodes_info{}, fmt.Errorf("connection error to episodes: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return episodes_info{}, fmt.Errorf("unexpected status %d from episodes endpoint", resp.StatusCode)
+	}
+
+	var data episodes_info
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		return episodes_info{}, fmt.Errorf("failed to decode episodes response: %w", err)
+	}
+	return data, nil
 }
 
 func GetSyncParams(_type string, id int, subtitleInfo subtitle_info) Sync_params{

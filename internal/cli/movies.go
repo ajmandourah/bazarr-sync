@@ -11,6 +11,7 @@ import (
 	"github.com/ajmandourah/bazarr-sync/internal/bazarr"
 	"github.com/ajmandourah/bazarr-sync/internal/config"
 	"github.com/pterm/pterm"
+	"golang.org/x/term"
 
 	"github.com/spf13/cobra"
 )
@@ -59,6 +60,7 @@ func sync_movies(cfg config.Config, c chan int) {
 	
 	skipForward := moviesContinueFrom != -1
 	stats := syncStats{}
+	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 moviesLoop:
 	for i, movie := range movies.Data {
 		if len(radarrid) > 0 {
@@ -76,44 +78,66 @@ moviesLoop:
 			} else {
 				p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(movie.Title) + " lang:" + pterm.LightRed("N/A") + " " + strconv.Itoa(i+1) + "/"+strconv.Itoa(len(movies.Data)))
 				pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
-				p.Success(pterm.LightBlue(movie.Title," Skipping due to continue option."))
+				p.Success("Skipping due to continue option.")
 				pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
 				stats.skipped++
 				continue
 			}
 		}
 
-	subtitle:
+subtitle:
 		c <- movie.RadarrId
 		for _, subtitle := range movie.Subtitles {
-			p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(movie.Title) + " lang:" + pterm.LightRed(subtitle.Code2) + " " + strconv.Itoa(i+1) + "/"+strconv.Itoa(len(movies.Data)))
-			if subtitle.Path == "" || subtitle.File_size == 0 {
-				pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
-				p.Success(pterm.LightBlue(movie.Title," Could not find a subtitle. most likely it is embedded. Lang: ",subtitle.Code2))
-				pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
-				stats.skipped++
-				continue
-			}
-			params := bazarr.GetSyncParams("movie", movie.RadarrId, subtitle)
-			if gss {params.Gss = "True"}
-			if no_framerate_fix {params.No_framerate_fix = "True"}
-			
-			ok := bazarr.Sync(cfg, params)
-			if ok {
-				p.Success("Synced ", movie.Title, " lang:", subtitle.Code2)
-				stats.success++
-				continue
-			}
-			
-			// Retry with exponential backoff
-			p.Warning("Error while syncing ", movie.Title, " lang: ", subtitle.Code2, " Retrying..")
-			ok = retrySync(cfg, params, movie.Title, subtitle.Code2)
-			if ok {
-				p.Success("Synced: ", movie.Title, " lang:", subtitle.Code2)
-				stats.success++
-			} else {	
-				p.Fail("Unable to sync ", movie.Title, " lang: ", subtitle.Code2)
-				stats.failed++
+			if isTerminal {
+				p,_ := pterm.DefaultSpinner.Start(pterm.LightBlue(movie.Title) + " lang:"+pterm.LightRed(subtitle.Code2)+" "+strconv.Itoa(i+1)+"/"+strconv.Itoa(len(movies.Data)))
+				if subtitle.Path == "" || subtitle.File_size == 0 {
+					pterm.Success.Prefix = pterm.Prefix{Text: "SKIP", Style: pterm.NewStyle(pterm.BgLightBlue, pterm.FgBlack)}
+					p.Success("Could not find a subtitle. most likely it is embedded. Lang: "+subtitle.Code2)
+					pterm.Success.Prefix = pterm.Prefix{Text: "SUCCESS", Style: pterm.NewStyle(pterm.BgGreen, pterm.FgBlack)}
+					stats.skipped++
+					continue
+				}
+				params := bazarr.GetSyncParams("movie", movie.RadarrId, subtitle)
+				if gss {params.Gss = "True"}
+				if no_framerate_fix {params.No_framerate_fix = "True"}
+				
+				ok := bazarr.Sync(cfg, params)
+				if ok {
+					p.Success("Synced")
+					stats.success++
+					continue
+				}
+				
+				// Retry with exponential backoff
+				p.Warning("Error while syncing lang: "+subtitle.Code2+" Retrying..")
+				ok = retrySync(cfg, params, movie.Title, subtitle.Code2)
+				if ok {
+					p.Success("Synced")
+					stats.success++
+				} else {	
+					p.Fail("Unable to sync lang: "+subtitle.Code2)
+					stats.failed++
+				}
+			} else {
+				// Non-TTY: simple text output, no spinner animation
+				if subtitle.Path == "" || subtitle.File_size == 0 {
+					fmt.Printf("  SKIP %s lang=%s (no subtitle file)\n", movie.Title, subtitle.Code2)
+					stats.skipped++
+					continue
+				}
+				params := bazarr.GetSyncParams("movie", movie.RadarrId, subtitle)
+				if gss {params.Gss = "True"}
+				if no_framerate_fix {params.No_framerate_fix = "True"}
+				
+				ok := bazarr.Sync(cfg, params)
+				if ok {
+					fmt.Printf("  SYNCED %s lang=%s\n", movie.Title, subtitle.Code2)
+					stats.success++
+					continue
+				} else {	
+					fmt.Printf("  FAILED %s lang=%s\n", movie.Title, subtitle.Code2)
+					stats.failed++
+				}
 			}
 		}
 	} 
