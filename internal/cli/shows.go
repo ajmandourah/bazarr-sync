@@ -48,23 +48,23 @@ func init() {
 	showsCmd.Flags().IntVar(&showsContinueFrom,"continue-from",-1,"Continue with the given Sonarr episode ID.")
 }
 
-// printShowResult prints the result line on stderr, replacing the spinner inline.
-func printShowResult(isTerminal bool, label string, green bool) {
-	if isTerminal {
-		fmt.Fprint(os.Stderr, "\r\033[K") // go to start of line, clear it
-		if green {
-			fmt.Fprintf(os.Stderr, "  %s\n", pterm.LightGreen("✅ "+label))
-		} else {
-			fmt.Fprintf(os.Stderr, "  %s\n", pterm.LightRed("❌ "+label))
-		}
+// startShowSpinner creates and starts a spinner with plain label suffix (no ANSI codes — they break \r cursor tracking).
+func startShowSpinner(label string) *spinner.Spinner {
+	s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
+	s.Writer = os.Stderr
+	s.Suffix = " " + label // plain text, no colors — safe for \r redraws
+	s.Start()
+	return s
+}
+
+// stopShowSpinner sets FinalMSG with colored result and stops the spinner.
+func stopShowSpinner(s *spinner.Spinner, label string, green bool) {
+	if green {
+		s.FinalMSG = fmt.Sprintf("  %s%s\n", pterm.LightGreen("✅ "), pterm.LightGreen(label))
 	} else {
-		// non-TTY: label already printed, just print status on next line
-		if green {
-			fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
-		} else {
-			fmt.Printf("  %s\n", pterm.LightRed("[Error]"))
-		}
+		s.FinalMSG = fmt.Sprintf("  %s%s\n", pterm.LightRed("❌ "), pterm.LightRed(label))
 	}
+	s.Stop()
 }
 
 func sync_shows(cfg config.Config, c chan int) {
@@ -102,17 +102,13 @@ episodes:
 				label := fmt.Sprintf("lang:%s S%02dE%02d %s", subtitle.Code2, episode.SeasonNumber, episode.EpisodeNumber, show.Title)
 
 				if isTerminal {
-					// Single line: label + spinner on stderr
-					s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
-					s.Writer = os.Stderr
-					s.Suffix = " " + label
-					s.Start()
+					s := startShowSpinner(label)
 
 					if skipForward {
 						if episode.SonarrEpisodeId == showsContinueFrom {
 							skipForward = false
 						} else {
-							printShowResult(isTerminal, label, false)
+							stopShowSpinner(s, label, false) // ❌ red — skipped
 							stats.skipped++
 							continue
 						}
@@ -120,7 +116,7 @@ episodes:
 
 					c <- episode.SonarrEpisodeId
 					if subtitle.Path == "" || subtitle.File_size == 0 {
-						printShowResult(isTerminal, label, false)
+						stopShowSpinner(s, label, false) // ❌ red — no sub file
 						stats.skipped++
 						continue
 					}
@@ -129,19 +125,19 @@ episodes:
 					if no_framerate_fix {params.No_framerate_fix = "True"}
 					ok := bazarr.Sync(cfg, params)
 					if ok {
-						printShowResult(isTerminal, label, true)
+						stopShowSpinner(s, label, true) // ✅ green — success
 						stats.success++
 						continue
 					} else {
 						// Retry with exponential backoff
-						fmt.Fprint(os.Stderr, "\r\033[K") // clear spinner line
+						fmt.Fprint(os.Stderr, "\r\033[K") // clear spinner line for warning
 						fmt.Fprintf(os.Stderr, "  WARNING: Error while syncing lang:%s\n", subtitle.Code2)
 						ok = retrySync(cfg, params, show.Title+": "+episode.Title, subtitle.Code2)
 						if ok {
-							printShowResult(isTerminal, label, true)
+							stopShowSpinner(s, label, true) // ✅ green — retry success
 							stats.success++
 						} else {
-							printShowResult(isTerminal, label, false)
+							stopShowSpinner(s, label, false) // ❌ red — hard failure
 							stats.failed++
 						}
 					}
