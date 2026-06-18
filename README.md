@@ -5,7 +5,7 @@
 ### Bulk sync your subtitles to your media.
 
 Bazarr let you download subs for your titles automatically.
-But if for some reason you needed to sync old subtitles, wither you need to do it because you have not synced them before or you have edited them elsewhere, you will be forced to do it one by one as there is no option to bulk sync them except a per series option which won't help if you would like to sync movies or if you have several shows.
+But if for for some reason you needed to sync old subtitles, wither you need to do it because you have not synced them before or you have edited them elsewhere, you will be forced to do it one by one as there is no option to bulk sync them except a per series option which won't help if you would like to sync movies or if you have several shows.
 This cli tool help you achieve that by utilizing bazarr's api.
 
 ## Installation
@@ -70,6 +70,7 @@ Available Commands:
 Flags:
       --config string          config file (default is ./config.yaml)
       --golden-section         Use Golden-Section Search
+      --lang string            Specify language code to sync (e.g., "en", "fr", "de", "ar"). Use two-letter ISO 639-1 codes.
       --list                   list your media with their respective Radarr/Sonarr id.
   -h, --help                   help for bazarr-sync
       --no-framerate-fix       Don't try to fix framerate
@@ -86,6 +87,23 @@ Sync all tv shows subtitles
 ```
 bazarr-sync --config config.yaml sync shows
 ```
+
+## Language Selection
+
+The `--lang` flag allows you to filter which subtitles to sync by specifying a language code. Use standard two-letter ISO 639-1 language codes (e.g., `en`, `fr`, `de`, `ar`, `es`, `pt`, `it`, `ru`, `zh`, `ja`, `ko`).
+
+```
+# Sync only English subtitles
+bazarr-sync --config config.yaml sync movies --lang en
+
+# Sync only French subtitles for shows
+bazarr-sync --config config.yaml sync shows --lang fr
+
+# Combine with other flags
+bazarr-sync --config config.yaml sync movies --lang de --no-framerate-fix
+```
+
+When no `--lang` flag is provided, all subtitles are processed regardless of language.
 
 ## Syncing specific movie/show subtitle
 
@@ -113,3 +131,34 @@ bazarr-sync --config config.yaml sync shows --sonarr-id 1302,953,961
 
 You can sync both movies and shows in the same time. what I recommend is using tmux and run the tool in 2 windows. this will assure that you won't loose progress.
 ![image](https://github.com/ajmandourah/bazarr-sync/assets/27051374/9a514fa4-aa6d-4756-98ce-f8d68dcf4ffd)
+
+## Resuming Interrupted Syncs
+
+The tool now supports resuming sync operations after interruptions. If a sync process is interrupted (e.g., due to a network issue or manual stop), you can resume from the last processed item using the `--continue-from` flag.
+
+```
+# Resume movie sync from a specific Radarr ID
+bazarr-sync --config config.yaml sync movies --continue-from 1234
+
+# Resume show sync from a specific Sonarr ID
+bazarr-sync --config config.yaml sync shows --continue-from 5678
+```
+
+## Retry Mechanism
+
+The tool includes a built-in retry mechanism for failed sync operations:
+- Default: 3 retries with exponential backoff
+- Configurable via `--retry-count` and `--retry-delay` flags
+- Retries help handle temporary network issues or server load problems
+
+```
+# Custom retry settings
+bazarr-sync --config config.yaml sync movies --retry-count 5 --retry-delay 1s
+```
+
+## Docker Network Requirements
+
+When running bazarr-sync in Docker, ensure the container can reach your Bazarr instance:
+- Use a bridged network (not the default Docker network) for proper DNS resolution
+- Specify the network name with `--network` flag
+- Use the Bazarr container name as the hostname in your config
