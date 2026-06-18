@@ -30,7 +30,7 @@ type syncStats struct {
 	failed  int
 }
 
-func retrySync(cfg config.Config, params bazarr.Sync_params, title string, lang string) bool {
+func retrySync(cfg config.Config, params bazarr.SyncParams, title string, lang string) bool {
 	// Attempt first sync
 	if ok := bazarr.Sync(cfg, params); ok {
 		return true
