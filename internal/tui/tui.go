@@ -8,12 +8,15 @@ import (
 	"github.com/ajmandourah/bazarr-sync/internal/bazarr"
 	"github.com/ajmandourah/bazarr-sync/internal/config"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 const (
-	ScreenMenu      int = iota
-	ScreenBrowser
-	ScreenSelecting
+	ScreenMenu         int = iota
+	ScreenBrowser          // Movie list or Show list
+	ScreenMovieSubs        // Subtitles of selected movie
+	ScreenShowEpisodes     // Episodes of selected show
+	ScreenEpisodeSubs      // Subtitles of selected episode
 	ScreenSyncing
 	ScreenDone
 )
@@ -35,8 +38,13 @@ type SelectItem struct {
 }
 
 type DataMessage struct {
-	Movies   []bazarr.Movie
-	Shows    []bazarr.Show
+	Movies []bazarr.Movie
+	Shows  []bazarr.Show
+	Errors error
+}
+
+type EpisodeMessage struct {
+	Episodes []bazarr.Episode
 	Errors   error
 }
 
@@ -53,15 +61,20 @@ func (a App) Init() tea.Cmd {
 }
 
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Size changed
+		a.width = msg.Width
+		a.height = msg.Height
 	case tea.KeyMsg:
-		return a.HandleKey(msg.(tea.KeyMsg))
+		return a.HandleKey(msg)
 	case DataMessage:
-		return a.HandleData(msg.(DataMessage))
+		return a.HandleData(msg)
+	case EpisodeMessage:
+		return a.HandleEpisodes(msg)
 	case SyncResultMessage:
-		return a.HandleSyncResult(msg.(SyncResultMessage))
+		return a.HandleSyncResult(msg)
+	case []SyncResultMessage:
+		return a.handleBatchResults(msg)
 	case TickMessage:
 		a.frame++
 		return a, tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg { return TickMessage{} })
@@ -70,19 +83,38 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a App) View() string {
+	var content string
 	switch a.screen {
 	case ScreenMenu:
-		return a.MenuView()
+		content = a.MenuView()
 	case ScreenBrowser:
-		return a.MenuView()
-	case ScreenSelecting:
-		return a.MenuView()
+		content = a.BrowserView()
+	case ScreenMovieSubs:
+		content = a.MovieSubsView()
+	case ScreenShowEpisodes:
+		content = a.ShowEpisodesView()
+	case ScreenEpisodeSubs:
+		content = a.EpisodeSubsView()
 	case ScreenSyncing:
-		return a.MenuView()
+		content = a.SyncingView()
 	case ScreenDone:
-		return a.MenuView()
+		content = a.DoneView()
 	}
-	return ""
+	contentHeight := lipgloss.Height(content)
+	topPad := (a.height - contentHeight) / 2
+	if topPad < 0 {
+		topPad = 0
+	}
+	bottomPad := a.height - contentHeight - topPad
+	if bottomPad < 0 {
+		bottomPad = 0
+	}
+	return lipgloss.NewStyle().
+		Background(base).
+		Width(a.width).
+		Padding(topPad, 0, bottomPad, 0).
+		Align(lipgloss.Center).
+		Render(content)
 }
 
 type App struct {
@@ -97,18 +129,27 @@ type App struct {
 	// Menu
 	menuIdx int
 
-	// Browser
-	mediaType  string
-	movies     []bazarr.Movie
-	shows      []bazarr.Show
-	episodes   []bazarr.Episode
-	search     string
-	browserIdx int
+	// Browser (movies or shows)
+	mediaType   string // "movie" or "show"
+	movies      []bazarr.Movie
+	shows       []bazarr.Show
+	search      string
+	browserIdx  int
 	focusSearch bool
+	loading     bool
 
-	// Selection
+	// Show episode navigation
+	selectedShow bazarr.Show
+	episodes     []bazarr.Episode
+	episodeIdx   int
+	epLoading    bool
+
+	// Subtitle selection (for episodes)
 	items  []SelectItem
 	selIdx int
+
+	// Staging area (accumulates selected subtitles across all screens)
+	staged []SyncJob
 
 	// Sync
 	jobs    []SyncJob
@@ -130,7 +171,8 @@ func Run() {
 		cfg:       c,
 		bazarrVer: version,
 		items:     make([]SelectItem, 0),
-		results:   make([]string, 0, 1),
+		results:   make([]string, 0),
+		staged:    make([]SyncJob, 0),
 	}
 
 	p := tea.NewProgram(app, tea.WithAltScreen())
