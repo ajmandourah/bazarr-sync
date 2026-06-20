@@ -21,7 +21,7 @@ var gss bool
 var no_framerate_fix bool
 var to_list bool
 var lang string
-var maxRetries = 3 // default number of retries for failed syncs (applies to all commands)
+var maxRetries = 3               // default number of retries for failed syncs (applies to all commands)
 var retryDelay = 2 * time.Second // delay between retry attempts, multiplied by attempt number for exponential backoff
 
 type syncStats struct {
@@ -47,9 +47,9 @@ func retrySync(cfg config.Config, params bazarr.SyncParams, title string, lang s
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "bazarr-sync",
+	Use:     "bazarr-sync",
 	Example: "bazarr-sync --config config.yaml sync movies --no-framerate-fix",
-	Short: "Manually bulk-sync subtitles downloaded via bazarr",
+	Short:   "Manually bulk-sync subtitles downloaded via bazarr",
 	Long: `Bulk-sync subtitles downloaded via Bazarr.
 
 Bazarr let you download subs for your titles automatically. 
@@ -59,7 +59,6 @@ This cli tool help you achieve that by utilizing bazarr's api.
 
 Make sure to create a config.yaml file including your configuration in it. Use the provided config file as a template.
 	`,
-
 }
 
 func Execute() {
@@ -70,19 +69,19 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize( func () {
-	
+	cobra.OnInitialize(func() {
+
 		config.InitConfig()
 	})
 
 	rootCmd.PersistentFlags().StringVar(&config.CfgFile, "config", "", "config file (default is ./config.yaml)")
-	rootCmd.PersistentFlags().BoolVar(&gss,"golden-section",false,"Use Golden-Section Search")
-	rootCmd.PersistentFlags().BoolVar(&no_framerate_fix,"no-framerate-fix",false,"Don't try to fix framerate")
-	rootCmd.PersistentFlags().IntVar(&maxRetries,"retry-count",3,"Number of retries for failed syncs (exponential backoff)")
-	rootCmd.PersistentFlags().DurationVar(&retryDelay,"retry-delay",2*time.Second,"Base delay between retries, multiplied by attempt number")
+	rootCmd.PersistentFlags().BoolVar(&gss, "golden-section", false, "Use Golden-Section Search")
+	rootCmd.PersistentFlags().BoolVar(&no_framerate_fix, "no-framerate-fix", false, "Don't try to fix framerate")
+	rootCmd.PersistentFlags().IntVar(&maxRetries, "retry-count", 3, "Number of retries for failed syncs (exponential backoff)")
+	rootCmd.PersistentFlags().DurationVar(&retryDelay, "retry-delay", 2*time.Second, "Base delay between retries, multiplied by attempt number")
 
-	rootCmd.PersistentFlags().BoolVar(&to_list,"list",false,"list your media with their respective Radarr/Sonarr id.")
-	rootCmd.PersistentFlags().StringVar(&lang,"lang","",`Specify language code to sync (e.g., "en", "fr", "de", "ar"). Use two-letter ISO 639-1 codes.`)
+	rootCmd.PersistentFlags().BoolVar(&to_list, "list", false, "list your media with their respective Radarr/Sonarr id.")
+	rootCmd.PersistentFlags().StringVar(&lang, "lang", "", `Specify language code to sync (e.g., "en", "fr", "de", "ar"). Use two-letter ISO 639-1 codes.`)
 }
 
 func runWithSignalHandler(syncFunc func(chan int)) {
@@ -95,7 +94,7 @@ func runWithSignalHandler(syncFunc func(chan int)) {
 	lastSubtitleId := -1
 	for {
 		select {
-		case subtitle, more := <- progressChan:
+		case subtitle, more := <-progressChan:
 			if !more {
 				// All subtitles are done.
 				return
@@ -103,7 +102,7 @@ func runWithSignalHandler(syncFunc func(chan int)) {
 
 			lastSubtitleId = subtitle
 
-		case _ = <- sigChan:
+		case _ = <-sigChan:
 			if lastSubtitleId != -1 {
 				showContinueMessage(lastSubtitleId)
 			} else {
@@ -118,7 +117,7 @@ func showContinueMessage(lastSubtitleId int) {
 	fmt.Println("Stopping current sync. To continue from this point the next time, run")
 	commandName := os.Args[0]
 	var args []string
-	for i:=1; i<len(os.Args);i++ {
+	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		if arg == "--continue-from" {
 			// Skip this and the next argument.

@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var menuItems = []string{"Sync Movies", "Sync Shows", "Exit"}
+var menuItems = []string{"Sync Movies", "Sync Shows", "Settings", "Exit"}
 
 var (
 	menuBoxStyle = lipgloss.NewStyle().
@@ -22,7 +22,7 @@ var (
 				Foreground(subtext0).Background(base)
 )
 
-var menuIcons = []string{"🎬", "📺", "🚪"}
+var menuIcons = []string{"🎬", "📺", "⚙️", "🚪"}
 
 func (a App) MenuView() string {
 	var b strings.Builder

@@ -1,16 +1,8 @@
 #config file example, please don't use quotes
 ###########################
 #
-#Address: the address of your bazarr instance. this can be either an ip address or a url (if you reverse proxy bazarr), 
-#this can also be bazarr's container name if you use docker, make sure bazarr-sync instance is in the same network as bazarr and the network not the default
-#docker network as name resolution won't happen there.
-Address: <bazarr_address>
+#bazarr_url: the full URL of your bazarr instance (e.g., https://bazarr.example.com or http://192.168.1.100:6767)
+bazarr_url: <bazarr_url>
 #
-#Port: bazarrs port. by default bazarr uses 6767. in case of reverse proxy, you can use 443 or 80 as per your configuration 
-Port: <port>
-#
-#protocol: this can be http or https
-Protocol: https
-#
-#ApiToken: you can get this from bazarr setting>general . no quotes needed.
-ApiToken: <Bazarr_api_token>
+#bazarr_token: you can get this from bazarr setting>general . no quotes needed.
+bazarr_token: <Bazarr_api_token>

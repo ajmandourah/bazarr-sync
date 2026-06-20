@@ -19,6 +19,7 @@ const (
 	ScreenEpisodeSubs      // Subtitles of selected episode
 	ScreenSyncing
 	ScreenDone
+	ScreenConfig
 )
 
 type SyncJob struct {
@@ -75,6 +76,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.HandleSyncResult(msg)
 	case []SyncResultMessage:
 		return a.handleBatchResults(msg)
+	case ConfigResult:
+		return a.HandleConfigResult(msg)
 	case TickMessage:
 		a.frame++
 		return a, tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg { return TickMessage{} })
@@ -99,6 +102,8 @@ func (a App) View() string {
 		content = a.SyncingView()
 	case ScreenDone:
 		content = a.DoneView()
+	case ScreenConfig:
+		content = a.ConfigView()
 	}
 	contentHeight := lipgloss.Height(content)
 	topPad := (a.height - contentHeight) / 2
@@ -155,24 +160,37 @@ type App struct {
 	jobs    []SyncJob
 	results []string
 	summary string
+
+	// Config screen
+	cfgUrl               string
+	cfgToken             string
+	cfgIdx               int
+	cfgValidating        bool
+	cfgValidationResult  string
+	cfgValidationSuccess bool
 }
 
 func Run() {
 	config.InitConfig()
 	c := config.GetConfig()
 
-	version, err := bazarr.CheckHealth(c)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	app := App{
+		cfg:     c,
+		items:   make([]SelectItem, 0),
+		results: make([]string, 0),
+		staged:  make([]SyncJob, 0),
 	}
 
-	app := App{
-		cfg:       c,
-		bazarrVer: version,
-		items:     make([]SelectItem, 0),
-		results:   make([]string, 0),
-		staged:    make([]SyncJob, 0),
+	if c.BaseUrl == "" || c.ApiToken == "" {
+		app.screen = ScreenConfig
+		app.populateConfigFields()
+	} else {
+		version, err := bazarr.CheckHealth(c)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		app.bazarrVer = version
 	}
 
 	p := tea.NewProgram(app, tea.WithAltScreen())

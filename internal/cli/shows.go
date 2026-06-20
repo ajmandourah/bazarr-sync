@@ -18,8 +18,8 @@ var sonarrid []int
 var showsContinueFrom int
 
 var showsCmd = &cobra.Command{
-	Use:   "shows",
-	Short: "Sync subtitles to the audio track of the show's episodes",
+	Use:     "shows",
+	Short:   "Sync subtitles to the audio track of the show's episodes",
 	Example: "bazarr-sync --config config.yaml sync shows --no-framerate-fix",
 	Long: `By default, Bazarr will try to sync the sub to the audio track:0 of the media. 
 This can fail due to many reasons mainly due to failure of bazarr to extract audio info. This is unfortunatly out of my hands.
@@ -34,7 +34,7 @@ The script by default will try to not use the golden section search method and w
 			list_shows(cfg)
 			return
 		}
-		runWithSignalHandler(func(c chan int){
+		runWithSignalHandler(func(c chan int) {
 			sync_shows(cfg, c)
 		})
 	},
@@ -43,8 +43,8 @@ The script by default will try to not use the golden section search method and w
 func init() {
 	syncCmd.AddCommand(showsCmd)
 
-	showsCmd.Flags().IntSliceVar(&sonarrid,"sonarr-id",[]int{},`Specify a list of sonarr Ids to sync. Use --list to view your shows with respective sonarr id.`)
-	showsCmd.Flags().IntVar(&showsContinueFrom,"continue-from",-1,"Continue with the given Sonarr episode ID.")
+	showsCmd.Flags().IntSliceVar(&sonarrid, "sonarr-id", []int{}, `Specify a list of sonarr Ids to sync. Use --list to view your shows with respective sonarr id.`)
+	showsCmd.Flags().IntVar(&showsContinueFrom, "continue-from", -1, "Continue with the given Sonarr episode ID.")
 }
 
 func startShowSpinner(label string) *spinner.Spinner {
@@ -86,8 +86,8 @@ showsLoop:
 			}
 			continue showsLoop
 		}
-	
-episodes:
+
+	episodes:
 		episodes, err := bazarr.QueryEpisodes(cfg, show.SonarrId)
 		if err != nil {
 			continue
@@ -121,8 +121,12 @@ episodes:
 						continue
 					}
 					params := bazarr.GetSyncParams("episode", episode.SonarrEpId, subtitle)
-					if gss { params.Gss = "True" }
-					if no_framerate_fix { params.NoFramerateFix = "True" }
+					if gss {
+						params.Gss = "True"
+					}
+					if no_framerate_fix {
+						params.NoFramerateFix = "True"
+					}
 					ok := bazarr.Sync(cfg, params)
 					if ok {
 						stopShowSpinner(s, label, true)
@@ -159,8 +163,12 @@ episodes:
 						continue
 					}
 					params := bazarr.GetSyncParams("episode", episode.SonarrEpId, subtitle)
-					if gss { params.Gss = "True" }
-					if no_framerate_fix { params.NoFramerateFix = "True" }
+					if gss {
+						params.Gss = "True"
+					}
+					if no_framerate_fix {
+						params.NoFramerateFix = "True"
+					}
 					ok := bazarr.Sync(cfg, params)
 					if ok {
 						fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
@@ -186,7 +194,7 @@ func list_shows(cfg config.Config) {
 		os.Exit(1)
 	}
 	table := pterm.TableData{
-		{"Title","SonarrId"},
+		{"Title", "SonarrId"},
 	}
 	pterm.Println(pterm.LightGreen("Listing all your Series with their respective Sonarr ID (great for syncing specific series)\n"))
 

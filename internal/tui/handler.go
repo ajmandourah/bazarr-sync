@@ -56,6 +56,8 @@ func (a App) HandleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		if msg.Type == tea.KeyEscape || msg.String() == "q" {
 			return a, tea.Quit
 		}
+	case ScreenConfig:
+		return a.ConfigHandler(msg)
 	}
 	return a, nil
 }
@@ -91,6 +93,13 @@ func (a App) MenuHandler(msg tea.KeyMsg) (App, tea.Cmd) {
 			}
 			a.loading = false
 		case 2:
+			a.screen = ScreenConfig
+			a.populateConfigFields()
+			a.cfgIdx = 0
+			a.cfgValidationResult = ""
+			a.cfgValidationSuccess = false
+			a.cfgValidating = false
+		case 3:
 			return a, tea.Quit
 		}
 		return a, nil
@@ -326,8 +335,21 @@ func (a App) MovieSubHandler(msg tea.KeyMsg) (App, tea.Cmd) {
 	case tea.KeyEscape:
 		a.screen = ScreenBrowser
 	case tea.KeyRunes:
-		if len(msg.Runes) == 1 && msg.Runes[0] == 'q' {
-			return a, tea.Quit
+		if len(msg.Runes) == 1 {
+			switch msg.Runes[0] {
+			case 'q':
+				return a, tea.Quit
+			case 'a':
+				for _, sub := range subs {
+					if !a.isStaged(sub.Path, sub.Code2) {
+						a.toggleStage(sub, titleName, movieId, sub.Code2)
+					}
+				}
+				return a, nil
+			case 'S':
+				a.staged = make([]SyncJob, 0)
+				return a, nil
+			}
 		}
 	}
 	return a, nil
@@ -383,7 +405,8 @@ func (a App) ShowEpisodesView() string {
 	headerHeight := 1 // titleBar
 	footerHeight := 2 // barStyle + cheatSheet
 	panelPadding := 2 // panelStyle padding top+bottom
-	contentRows := a.height - headerHeight - footerHeight - panelPadding
+	stagedHeight := a.stagedPanelHeight()
+	contentRows := a.height - headerHeight - footerHeight - panelPadding - stagedHeight
 	if contentRows < 1 {
 		contentRows = 1
 	}
@@ -438,6 +461,10 @@ func (a App) ShowEpisodesView() string {
 
 	content := list.String() + "\n" + barStyle.Render(fmt.Sprintf("  %d / %d", a.episodeIdx+1, len(a.episodes)))
 	b.WriteString(content)
+
+	if stg := a.renderStagedList(); stg != "" {
+		b.WriteString("\n" + stagedPanel.Render(stg))
+	}
 	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Enter select subs  •  Ctrl+S sync staged  •  Esc back  •  q quit"))
 
 	return panelStyle.Render(b.String())
@@ -480,7 +507,6 @@ func (a App) EpisodeSubHandler(msg tea.KeyMsg) (App, tea.Cmd) {
 		if a.selIdx < len(a.items) {
 			item := a.items[a.selIdx]
 			a.toggleEpisodeSub(item)
-			// Clamp selIdx after toggle to prevent out-of-bounds on next render
 			if a.selIdx >= len(a.items) {
 				a.selIdx = len(a.items) - 1
 			}
@@ -503,8 +529,21 @@ func (a App) EpisodeSubHandler(msg tea.KeyMsg) (App, tea.Cmd) {
 	case tea.KeyEscape:
 		a.screen = ScreenShowEpisodes
 	case tea.KeyRunes:
-		if len(msg.Runes) == 1 && msg.Runes[0] == 'q' {
-			return a, tea.Quit
+		if len(msg.Runes) == 1 {
+			switch msg.Runes[0] {
+			case 'q':
+				return a, tea.Quit
+			case 'a':
+				for _, item := range a.items {
+					if !a.isStaged(item.Path, item.Code2) {
+						a.toggleEpisodeSub(item)
+					}
+				}
+				return a, nil
+			case 'S':
+				a.staged = make([]SyncJob, 0)
+				return a, nil
+			}
 		}
 	}
 	return a, nil
@@ -529,7 +568,8 @@ func (a App) EpisodeSubsView() string {
 	headerHeight := 1 // titleBar
 	footerHeight := 2 // barStyle + cheatSheet
 	panelPadding := 2 // panelStyle padding top+bottom
-	contentRows := a.height - headerHeight - footerHeight - panelPadding
+	stagedHeight := a.stagedPanelHeight()
+	contentRows := a.height - headerHeight - footerHeight - panelPadding - stagedHeight
 	if contentRows < 1 {
 		contentRows = 1
 	}
@@ -589,7 +629,11 @@ func (a App) EpisodeSubsView() string {
 	}
 
 	b.WriteString("\n" + barStyle.Render(fmt.Sprintf("  %d / %d", a.selIdx+1, len(a.items))))
-	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Space toggle  •  Ctrl+S sync staged  •  Esc back  •  q quit"))
+
+	if stg := a.renderStagedList(); stg != "" {
+		b.WriteString("\n" + stagedPanel.Render(stg))
+	}
+	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Space toggle  •  a stage all  •  S clear all  •  Ctrl+S sync  •  Esc back  •  q quit"))
 
 	return panelStyle.Render(b.String())
 }
@@ -696,5 +740,19 @@ func (a App) handleBatchResults(results []SyncResultMessage) (App, tea.Cmd) {
 		}
 	}
 	a.screen = ScreenDone
+	return a, nil
+}
+
+func (a App) HandleConfigResult(msg ConfigResult) (App, tea.Cmd) {
+	a.cfgValidating = false
+	a.cfgValidationResult = ""
+	a.cfgValidationSuccess = false
+
+	if msg.Success {
+		a.cfgValidationSuccess = true
+		a.cfgValidationResult = "Config saved!"
+	} else {
+		a.cfgValidationResult = msg.Error
+	}
 	return a, nil
 }

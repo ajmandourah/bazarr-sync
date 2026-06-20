@@ -60,8 +60,6 @@ func (a App) isStaged(path string, code string) bool {
 	return false
 }
 
-
-
 func (a *App) toggleStage(sub bazarr.Subtitle, title string, mediaId int, code2 string) {
 	for i, s := range a.staged {
 		if s.Params.Path == sub.Path && s.Params.Lang == code2 {
@@ -97,11 +95,12 @@ func (a App) BrowserView() string {
 
 	titles := a.filteredTitles()
 
-	// Compute layout dimensions
+	// Compute layout dimensions - account for staged panel dynamically
 	headerHeight := 2 // titleBar + searchBar
 	footerHeight := 2 // barStyle + cheatSheet
 	panelPadding := 2 // panelStyle padding top+bottom
-	contentRows := a.height - headerHeight - footerHeight - panelPadding
+	stagedHeight := a.stagedPanelHeight()
+	contentRows := a.height - headerHeight - footerHeight - panelPadding - stagedHeight
 	if contentRows < 1 {
 		contentRows = 1
 	}
@@ -162,6 +161,10 @@ func (a App) BrowserView() string {
 	}
 
 	b.WriteString("\n" + barStyle.Render(fmt.Sprintf("  %d / %d", a.browserIdx+1, len(titles))))
+
+	if stg := a.renderStagedList(); stg != "" {
+		b.WriteString("\n" + stagedPanel.Render(stg))
+	}
 	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Enter/Space subs  •  / search  •  Ctrl+S sync  •  Esc back  •  q quit"))
 
 	return panelStyle.Render(b.String())
@@ -176,11 +179,12 @@ func (a App) MovieSubsView() string {
 	titleName := titles[a.browserIdx]
 	subs := a.getSubtitleListFiltered(a.browserIdx)
 
-	// Compute layout dimensions
+	// Compute layout dimensions - account for staged panel dynamically
 	headerHeight := 1 // titleBar only
 	footerHeight := 2 // barStyle + cheatSheet
 	panelPadding := 2 // panelStyle padding top+bottom
-	contentRows := a.height - headerHeight - footerHeight - panelPadding
+	stagedHeight := a.stagedPanelHeight()
+	contentRows := a.height - headerHeight - footerHeight - panelPadding - stagedHeight
 	if contentRows < 1 {
 		contentRows = 1
 	}
@@ -189,7 +193,7 @@ func (a App) MovieSubsView() string {
 	b.WriteString(titleBar.Render("  Subtitles: " + titleName))
 
 	if len(subs) == 0 {
-b.WriteString("\n" + itemUnsel.Render("  No subtitles available"))
+		b.WriteString("\n" + itemUnsel.Render("  No subtitles available"))
 		b.WriteString("\n" + cheatSheet.Render("  Esc back  •  Ctrl+S sync staged  •  q quit"))
 		return lipgloss.NewStyle().Background(base).Align(lipgloss.Center).Render(panelStyle.Render(b.String()))
 	}
@@ -226,7 +230,11 @@ b.WriteString("\n" + itemUnsel.Render("  No subtitles available"))
 	}
 
 	b.WriteString("\n" + barStyle.Render(fmt.Sprintf("  %d / %d", a.selIdx+1, len(subs))))
-	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Space toggle  •  Ctrl+S sync staged  •  Esc back  •  q quit"))
+
+	if stg := a.renderStagedList(); stg != "" {
+		b.WriteString("\n" + stagedPanel.Render(stg))
+	}
+	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Space toggle  •  a stage all  •  S clear all  •  Ctrl+S sync  •  Esc back  •  q quit"))
 
 	return panelStyle.Render(b.String())
 }

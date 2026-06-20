@@ -9,8 +9,8 @@ import (
 
 // syncCmd represents the sync command
 var syncCmd = &cobra.Command{
-	Use:   "sync",
-	Short: "Sync subtitles to the audio track of the media",
+	Use:     "sync",
+	Short:   "Sync subtitles to the audio track of the media",
 	Example: "bazarr-sync --config config.yaml sync movies --no-framerate-fix",
 	Long: `By default, Bazarr will try to sync the sub to the audio track:0 of the media. 
 This can fail due to many reasons mainly due to failure of bazarr to extract audio info. This is unfortunatly out of my hands.

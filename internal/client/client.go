@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	defaultTimeout  = 30 * time.Second
-	syncTimeout     = 120 * time.Second // Sync operations need more time
-	maxRedirects    = 10
+	defaultTimeout = 30 * time.Second
+	syncTimeout    = 120 * time.Second // Sync operations need more time
+	maxRedirects   = 10
 )
 
 // HTTPTransport returns a configured http.Transport for connection pooling and timeouts.
@@ -24,14 +24,14 @@ func HTTPTransport() *http.Transport {
 
 type HttpClient struct {
 	client http.Client
-	Token string
+	Token  string
 }
 
 var client *HttpClient
 
 // GetClient returns the singleton HTTP client. If the token differs from the existing
 // client, a new one is created instead of returning the stale one.
-func GetClient(token string) *HttpClient{
+func GetClient(token string) *HttpClient {
 	if client == nil || client.Token != token {
 		client = &HttpClient{
 			Token: token,
@@ -89,7 +89,7 @@ func (c *HttpClient) Do(req *http.Request) (resp *http.Response, err error) {
 // GetRaw makes a GET request and returns the response without reading the body.
 // The caller is responsible for reading/closing the body.
 func (c *HttpClient) Get(url string) (resp *http.Response, err error) {
-	req , err := http.NewRequest("GET",url,nil)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -98,18 +98,17 @@ func (c *HttpClient) Get(url string) (resp *http.Response, err error) {
 
 // TODO : add paramaters
 func (c *HttpClient) Post(url string, params url.Values) (resp *http.Response, err error) {
-	req , err :=http.NewRequest("POST",url+params.Encode(),nil)
+	req, err := http.NewRequest("POST", url+params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	
 	return c.Do(req)
 }
 
 // TODO : Add paramaters
-func (c *HttpClient) Patch(url string) (resp *http.Response, err error) {	
-	req , err :=http.NewRequest("PATCH",url,nil)
+func (c *HttpClient) Patch(url string) (resp *http.Response, err error) {
+	req, err := http.NewRequest("PATCH", url, nil)
 	if err != nil {
 		return nil, err
 	}
