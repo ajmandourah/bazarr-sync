@@ -165,7 +165,7 @@ func (a App) BrowserView() string {
 	if stg := a.renderStagedList(); stg != "" {
 		b.WriteString("\n" + stagedPanel.Render(stg))
 	}
-	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Enter/Space subs  •  / search  •  Ctrl+S sync  •  Esc back  •  q quit"))
+	b.WriteString("\n" + cheatSheet.Render("  ↑↓ j/k navigate  •  Enter/Space subs  •  / search  •  Ctrl+S sync  •  Esc back  •  q quit"))
 
 	return panelStyle.Render(b.String())
 }
@@ -234,7 +234,7 @@ func (a App) MovieSubsView() string {
 	if stg := a.renderStagedList(); stg != "" {
 		b.WriteString("\n" + stagedPanel.Render(stg))
 	}
-	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Space toggle  •  a stage all  •  S clear all  •  Ctrl+S sync  •  Esc back  •  q quit"))
+	b.WriteString("\n" + cheatSheet.Render("  ↑↓ j/k navigate  •  Space toggle  •  a stage all  •  S clear all  •  Ctrl+S sync  •  Esc back  •  q quit"))
 
 	return panelStyle.Render(b.String())
 }

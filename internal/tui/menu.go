@@ -46,7 +46,7 @@ func (a App) MenuView() string {
 	b.WriteString(menuBoxStyle.Render(menuContent))
 	b.WriteString("\n\n")
 
-	b.WriteString(cheatSheet.Render("  ↑↓ h/j/k/l  •  Enter select  •  q quit"))
+	b.WriteString(cheatSheet.Render("  ↑↓ j/k  •  Enter select  •  q quit"))
 
 	return b.String()
 }

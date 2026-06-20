@@ -69,12 +69,12 @@ var (
 	stagedMore           = lipgloss.NewStyle().Foreground(overlay0).Italic(true).Background(crust)
 	cfgInputStyle        = lipgloss.NewStyle().Foreground(subtext0).Padding(0, 1).Background(surface0)
 	cfgInputFocusedStyle = lipgloss.NewStyle().Foreground(text).Padding(0, 1).Background(surface1)
-	cfgLabelStyle        = lipgloss.NewStyle().Foreground(overlay2).Width(12)
-	cfgLabelFocusedStyle = lipgloss.NewStyle().Foreground(mauve).Bold(true).Width(12)
-	cfgPlaceholderStyle  = lipgloss.NewStyle().Foreground(overlay0).Italic(true)
-	cfgSuccessStyle      = lipgloss.NewStyle().Foreground(green).Bold(true)
-	cfgErrorStyle        = lipgloss.NewStyle().Foreground(red).Bold(true)
-	cfgValidatingStyle   = lipgloss.NewStyle().Foreground(teal)
+	cfgLabelStyle        = lipgloss.NewStyle().Foreground(overlay2).Width(16).Background(mantle)
+	cfgLabelFocusedStyle = lipgloss.NewStyle().Foreground(mauve).Bold(true).Width(16).Background(mantle)
+	cfgPlaceholderStyle  = lipgloss.NewStyle().Foreground(overlay0).Italic(true).Background(mantle)
+	cfgSuccessStyle      = lipgloss.NewStyle().Foreground(green).Bold(true).Background(mantle)
+	cfgErrorStyle        = lipgloss.NewStyle().Foreground(red).Bold(true).Background(mantle)
+	cfgValidatingStyle   = lipgloss.NewStyle().Foreground(teal).Background(mantle)
 )
 
 func spinnerStr(n int) string {

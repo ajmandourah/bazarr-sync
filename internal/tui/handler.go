@@ -19,13 +19,13 @@ func isEnterKey(msg tea.KeyMsg) bool {
 }
 
 func (a App) HandleKey(msg tea.KeyMsg) (App, tea.Cmd) {
-	// Vim bindings: h/j/k/l → arrow keys (only for single runes, never q or space)
-	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
+	// Vim bindings: j/k → arrow keys (skip in config screen and search mode)
+	if a.screen != ScreenConfig && !a.focusSearch && msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
 		switch msg.Runes[0] {
-		case 'h', 'k':
+		case 'k':
 			msg.Type = tea.KeyUp
 			msg.Runes = nil
-		case 'j', 'l':
+		case 'j':
 			msg.Type = tea.KeyDown
 			msg.Runes = nil
 		}
@@ -465,7 +465,7 @@ func (a App) ShowEpisodesView() string {
 	if stg := a.renderStagedList(); stg != "" {
 		b.WriteString("\n" + stagedPanel.Render(stg))
 	}
-	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Enter select subs  •  Ctrl+S sync staged  •  Esc back  •  q quit"))
+	b.WriteString("\n" + cheatSheet.Render("  ↑↓ j/k navigate  •  Enter select subs  •  Ctrl+S sync staged  •  Esc back  •  q quit"))
 
 	return panelStyle.Render(b.String())
 }
@@ -633,7 +633,7 @@ func (a App) EpisodeSubsView() string {
 	if stg := a.renderStagedList(); stg != "" {
 		b.WriteString("\n" + stagedPanel.Render(stg))
 	}
-	b.WriteString("\n" + cheatSheet.Render("  ↑↓ h/j/k/l navigate  •  Space toggle  •  a stage all  •  S clear all  •  Ctrl+S sync  •  Esc back  •  q quit"))
+	b.WriteString("\n" + cheatSheet.Render("  ↑↓ j/k navigate  •  Space toggle  •  a stage all  •  S clear all  •  Ctrl+S sync  •  Esc back  •  q quit"))
 
 	return panelStyle.Render(b.String())
 }
@@ -750,7 +750,8 @@ func (a App) HandleConfigResult(msg ConfigResult) (App, tea.Cmd) {
 
 	if msg.Success {
 		a.cfgValidationSuccess = true
-		a.cfgValidationResult = "Config saved!"
+		a.bazarrVer = msg.Version
+		a.cfgValidationResult = "Connected to Bazarr " + msg.Version
 	} else {
 		a.cfgValidationResult = msg.Error
 	}

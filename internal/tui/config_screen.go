@@ -15,6 +15,7 @@ import (
 type ConfigResult struct {
 	Success bool
 	Error   string
+	Version string
 }
 
 func (a App) ConfigView() string {
@@ -28,7 +29,6 @@ func (a App) ConfigView() string {
 
 	var b strings.Builder
 	b.WriteString(titleBar.Render("  Settings"))
-	b.WriteString("\n")
 
 	for i, field := range fields {
 		inputStyle := cfgInputStyle
@@ -62,13 +62,13 @@ func (a App) ConfigView() string {
 		b.WriteString("\n\n  " + cfgValidatingStyle.Render(spinnerStr(a.frame)+" Validating connection..."))
 	} else if a.cfgValidationResult != "" {
 		if a.cfgValidationSuccess {
-			b.WriteString("\n\n  " + cfgSuccessStyle.Render("✓ Configuration saved and validated!"))
+			b.WriteString("\n\n  " + cfgSuccessStyle.Render("✓ "+a.cfgValidationResult))
 		} else {
 			b.WriteString("\n\n  " + cfgErrorStyle.Render("✗ "+a.cfgValidationResult))
 		}
 	}
 
-	b.WriteString("\n\n" + cheatSheet.Render("  Tab/↑↓ navigate  •  Enter save  •  q/Esc back"))
+	b.WriteString("\n\n" + cheatSheet.Render("  Tab/j/k navigate  •  Enter save  •  q/Esc back"))
 
 	return panelStyle.Render(b.String())
 }
@@ -193,7 +193,7 @@ func (a App) saveConfigCmd() tea.Cmd {
 			}
 		}
 
-		_, err = bazarr.CheckHealth(cfg)
+		version, err := bazarr.CheckHealth(cfg)
 		if err != nil {
 			return ConfigResult{
 				Success: false,
@@ -201,7 +201,7 @@ func (a App) saveConfigCmd() tea.Cmd {
 			}
 		}
 
-		return ConfigResult{Success: true}
+		return ConfigResult{Success: true, Version: version}
 	}
 }
 

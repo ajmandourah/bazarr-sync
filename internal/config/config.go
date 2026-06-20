@@ -34,6 +34,17 @@ func SetConfig(newCfg Config) {
 }
 
 func InitConfig() {
+	c, err := LoadConfig()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Configuration Error: ", err)
+		os.Exit(1)
+	}
+	cfg = c
+}
+
+func LoadConfig() (Config, error) {
+	var c Config
+
 	if CfgFile != "" {
 		viper.SetConfigFile(CfgFile)
 	} else {
@@ -42,23 +53,24 @@ func InitConfig() {
 		viper.SetConfigName("config")
 	}
 	viper.AutomaticEnv()
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-	} else {
-		fmt.Fprintln(os.Stderr, "Configuration Error: Unable to read config. ", err)
-		os.Exit(1)
-	}
-	viper.Unmarshal(&cfg)
 
-	if cfg.BaseUrl == "" {
-		fmt.Fprintln(os.Stderr, "Configuration Error: bazarr_url is required")
-		os.Exit(1)
+	if err := viper.ReadInConfig(); err != nil {
+		return c, fmt.Errorf("unable to read config: %w", err)
 	}
 
-	parsedUrl, err := url.Parse(cfg.BaseUrl)
+	if err := viper.Unmarshal(&c); err != nil {
+		return c, fmt.Errorf("unable to parse config: %w", err)
+	}
+
+	if c.BaseUrl == "" {
+		return c, fmt.Errorf("bazarr_url is required")
+	}
+
+	parsedUrl, err := url.Parse(c.BaseUrl)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "URL Error: ", err)
-		os.Exit(1)
+		return c, fmt.Errorf("invalid URL: %w", err)
 	}
-	cfg.ApiUrl = parsedUrl.Scheme + "://" + parsedUrl.Host + "/api/"
+	c.ApiUrl = parsedUrl.Scheme + "://" + parsedUrl.Host + "/api/"
+
+	return c, nil
 }

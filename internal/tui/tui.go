@@ -171,20 +171,21 @@ type App struct {
 }
 
 func Run() {
-	config.InitConfig()
-	c := config.GetConfig()
-
+	c, err := config.LoadConfig()
 	app := App{
-		cfg:     c,
 		items:   make([]SelectItem, 0),
 		results: make([]string, 0),
 		staged:  make([]SyncJob, 0),
 	}
 
-	if c.BaseUrl == "" || c.ApiToken == "" {
+	if err != nil || c.BaseUrl == "" || c.ApiToken == "" {
+		config.SetConfig(c)
+		app.cfg = c
 		app.screen = ScreenConfig
 		app.populateConfigFields()
 	} else {
+		config.SetConfig(c)
+		app.cfg = c
 		version, err := bazarr.CheckHealth(c)
 		if err != nil {
 			fmt.Println(err)
