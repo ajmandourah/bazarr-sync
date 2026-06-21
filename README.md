@@ -1,6 +1,6 @@
-![bazarr-sync](https://github.com/ajmandourah/bazarr-sync/assets/27051374/6c4acde4-bb9b-4172-8c67-c985c7994b28)
 
-![image](https://github.com/ajmandourah/bazarr-sync/assets/27051374/545803da-a061-4092-9f35-6bbabac598a7)
+
+<img height="100" alt="Screenshot_2026-06-21_183000-removebg-preview" src="https://github.com/user-attachments/assets/d6c24b41-5214-47b8-a1f4-d7c1601050a6" />
 
 ### Bulk sync your subtitles to your media.
 
@@ -42,6 +42,10 @@ bazarr-sync sync movies
 
 ## Configuration
 
+### The easy way
+Just launch bazarr-sync, you will be prompted to provide bazarr address and bazarr api key. your setting will be saved in the same directory.
+
+### The traditional way
 use the provided config.yaml file as a template. fill in the required fields.
 either direct the flag --config to your config file or place it in the working directiory where you bazarr-sync is located.
 
@@ -51,6 +55,12 @@ bazarr_token: your_api_token_here
 ```
 
 ## Usage
+
+### The TUI
+just launch bazarr-sync without any arguments. in the TUI you can search , select multiple subtitles and send the request to send them to bazarr without the need the go through bazarr address. perfect when you know what do you wanna do . 
+
+### The CLI
+Scriptable option for all your need. 
 
 ```
 Make sure to create a config.yaml file including your configuration in it.
@@ -130,7 +140,6 @@ bazarr-sync --config config.yaml sync shows --sonarr-id 1302,953,961
 ## Syncing both movies and shows
 
 You can sync both movies and shows in the same time. what I recommend is using tmux and run the tool in 2 windows. this will assure that you won't loose progress.
-![image](https://github.com/ajmandourah/bazarr-sync/assets/27051374/9a514fa4-aa6d-4756-98ce-f8d68dcf4ffd)
 
 ## Resuming Interrupted Syncs
 
