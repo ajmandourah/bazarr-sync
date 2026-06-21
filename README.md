@@ -59,6 +59,10 @@ bazarr_token: your_api_token_here
 ### The TUI
 just launch bazarr-sync without any arguments. in the TUI you can search , select multiple subtitles and send the request to send them to bazarr without the need the go through bazarr address. perfect when you know what do you wanna do . 
 
+<img  height="300" alt="Screenshot 2026-06-21 214139" src="https://github.com/user-attachments/assets/c3b1dec7-9242-4d80-b5da-ac797cd984a7" />
+<img  height="300" alt="Screenshot 2026-06-21 214250" src="https://github.com/user-attachments/assets/4ffeb033-dbea-423c-808a-25b42c264135" />
+
+
 ### The CLI
 Scriptable option for all your need. 
 
