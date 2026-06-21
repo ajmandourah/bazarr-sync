@@ -1,6 +1,7 @@
 
-
+<p align="center">
 <img height="100" alt="Screenshot_2026-06-21_183000-removebg-preview" src="https://github.com/user-attachments/assets/d6c24b41-5214-47b8-a1f4-d7c1601050a6" />
+</p>
 
 ### Bulk sync your subtitles to your media.
 
