@@ -1,6 +1,3 @@
-/*
-Copyright © 2024 ajmandourah
-*/
 package cli
 
 import (
@@ -20,25 +17,27 @@ import (
 var radarrid []int
 var moviesContinueFrom int
 
-// moviesCmd represents the movies command
 var moviesCmd = &cobra.Command{
-	Use:   "movies",
-	Short: "Sync subtitles to the audio track of the movie",
+	Use:     "movies",
+	Short:   "Sync subtitles to the audio track of the movie",
 	Example: "bazarr-sync --config config.yaml sync movies --no-framerate-fix",
 	Long: `By default, Bazarr will try to sync the sub to the audio track:0 of the media. 
 This can fail due to many reasons mainly due to failure of bazarr to extract audio info. This is unfortunatly out of my hands.
 The script by default will try to not use the golden section search method and will try to fix framerate issues. This can be changed using the flags.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.GetConfig()
-		fmt.Fprintln(os.Stderr, "[DEBUG] Using ComputedBaseUrl:", cfg.ComputedBaseUrl)
+		fmt.Fprintln(os.Stderr, "[DEBUG] Using BaseUrl:", cfg.BaseUrl)
 		fmt.Fprintln(os.Stderr, "[DEBUG] Using ApiUrl:", cfg.ApiUrl)
 		fmt.Fprintln(os.Stderr, "[DEBUG] Using Token prefix:", cfg.ApiToken[:4]+"...")
-		bazarr.HealthCheck(cfg)
+		if _, err := bazarr.CheckHealth(cfg); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		if to_list {
 			list_movies(cfg)
 			return
 		}
-		runWithSignalHandler(func(c chan int){
+		runWithSignalHandler(func(c chan int) {
 			sync_movies(cfg, c)
 		})
 	},
@@ -46,22 +45,19 @@ The script by default will try to not use the golden section search method and w
 
 func init() {
 	syncCmd.AddCommand(moviesCmd)
-	
-	moviesCmd.Flags().IntSliceVar(&radarrid,"radarr-id",[]int{},"Specify a list of radarr Ids to sync. Use --list to view your movies with respective radarr id.")
-	moviesCmd.Flags().IntVar(&moviesContinueFrom,"continue-from",-1,"Continue with the given Radarr movie ID.")
+
+	moviesCmd.Flags().IntSliceVar(&radarrid, "radarr-id", []int{}, "Specify a list of radarr Ids to sync. Use --list to view your movies with respective radarr id.")
+	moviesCmd.Flags().IntVar(&moviesContinueFrom, "continue-from", -1, "Continue with the given Radarr movie ID.")
 }
 
-// startMovieSpinner creates and starts a spinner with plain label suffix (no ANSI codes — they break \r cursor tracking).
-// Returns the spinner so FinalMSG/Stop can be used on completion.
 func startMovieSpinner(label string) *spinner.Spinner {
 	s := spinner.New(spinner.CharSets[39], 100*time.Millisecond)
 	s.Writer = os.Stderr
-	s.Suffix = " " + label // plain text, no colors — safe for \r redraws
+	s.Suffix = " " + label
 	s.Start()
 	return s
 }
 
-// stopMovieSpinner sets FinalMSG with colored result and stops the spinner (inline replacement on one line).
 func stopMovieSpinner(s *spinner.Spinner, label string, green bool) {
 	if green {
 		s.FinalMSG = fmt.Sprintf("  %s%s\n", pterm.LightGreen("✅ "), pterm.LightGreen(label))
@@ -102,10 +98,9 @@ moviesLoop:
 			}
 		}
 
-subtitle:
+	subtitle:
 		c <- movie.RadarrId
 		for _, subtitle := range movie.Subtitles {
-			// Language filtering
 			if lang != "" && subtitle.Code2 != lang {
 				continue
 			}
@@ -115,52 +110,58 @@ subtitle:
 			if isTerminal {
 				s := startMovieSpinner(label)
 
-				if subtitle.Path == "" || subtitle.File_size == 0 {
-					stopMovieSpinner(s, label, false) // ❌ red — no sub file
+				if subtitle.Path == "" || subtitle.FileSize == 0 {
+					stopMovieSpinner(s, label, false)
 					stats.skipped++
 					continue
 				}
 				params := bazarr.GetSyncParams("movie", movie.RadarrId, subtitle)
-				if gss {params.Gss = "True"}
-				if no_framerate_fix {params.No_framerate_fix = "True"}
+				if gss {
+					params.Gss = "True"
+				}
+				if no_framerate_fix {
+					params.NoFramerateFix = "True"
+				}
 
 				ok := bazarr.Sync(cfg, params)
 				if ok {
-					stopMovieSpinner(s, label, true) // ✅ green — success
+					stopMovieSpinner(s, label, true)
 					stats.success++
 					continue
 				}
 
-				// Retry with exponential backoff
-				fmt.Fprint(os.Stderr, "\r\033[K") // clear spinner line for warning
+				fmt.Fprint(os.Stderr, "\r\033[K")
 				fmt.Fprintf(os.Stderr, "  WARNING: Error while syncing lang:%s\n", subtitle.Code2)
 				ok = retrySync(cfg, params, movie.Title, subtitle.Code2)
 				if ok {
-					stopMovieSpinner(s, label, true) // ✅ green — retry success
+					stopMovieSpinner(s, label, true)
 					stats.success++
-				} else {	
-					stopMovieSpinner(s, label, false) // ❌ red — hard failure
+				} else {
+					stopMovieSpinner(s, label, false)
 					stats.failed++
 				}
 			} else {
-				// Non-TTY: simple text output, no spinner animation
 				fmt.Printf("  %s\n", label)
 
-				if subtitle.Path == "" || subtitle.File_size == 0 {
+				if subtitle.Path == "" || subtitle.FileSize == 0 {
 					pterm.Info.Printf("    (no sub file - probably embedded)\n")
 					stats.skipped++
 					continue
 				}
 				params := bazarr.GetSyncParams("movie", movie.RadarrId, subtitle)
-				if gss {params.Gss = "True"}
-				if no_framerate_fix {params.No_framerate_fix = "True"}
+				if gss {
+					params.Gss = "True"
+				}
+				if no_framerate_fix {
+					params.NoFramerateFix = "True"
+				}
 
 				ok := bazarr.Sync(cfg, params)
 				if ok {
 					fmt.Printf("  %s\n", pterm.LightGreen("[Request sent]"))
 					stats.success++
 					continue
-				} else {	
+				} else {
 					fmt.Printf("  %s\n", pterm.LightRed("[Error]"))
 					stats.failed++
 				}
@@ -169,7 +170,6 @@ subtitle:
 	}
 	fmt.Println("Finished syncing subtitles of type Movies")
 	fmt.Printf("\n📊 Summary: %d synced, %d skipped, %d failed\n", stats.success, stats.skipped, stats.failed)
-	// Signal that we're done with all subtitles.
 	close(c)
 }
 
@@ -180,12 +180,12 @@ func list_movies(cfg config.Config) {
 		os.Exit(1)
 	}
 	table := pterm.TableData{
-		{"Title","RadarrId"},
+		{"Title", "RadarrId"},
 	}
 	pterm.Println(pterm.LightGreen("Listing all your movies with their respective Radarr ID (great for syncing specific movies)\n"))
 
 	for _, movie := range movies.Data {
-		t := []string{pterm.LightBlue(movie.Title),pterm.LightRed(movie.RadarrId)}
+		t := []string{pterm.LightBlue(movie.Title), pterm.LightRed(movie.RadarrId)}
 		table = append(table, t)
 	}
 	pterm.DefaultTable.WithHasHeader().WithHeaderRowSeparator("-").WithData(table).Render()
